@@ -1,0 +1,22 @@
+'use strict';
+
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('Levels', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      nama_level: { type: Sequelize.STRING, allowNull: false },
+      deskripsi: { type: Sequelize.TEXT },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('Levels');
+  }
+};

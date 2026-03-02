@@ -1,9 +1,17 @@
 import express from "express";
-// Tambahkan .js di akhir jika menggunakan ES Modules (type: module)
-import { login } from "../controllers/authController.js"; 
+import { login, logout,register,getMe,getDashboardSummary,updateProgress,updateModuleProgress } from "../controllers/authController.js";
+import { getMyCertificates } from "../controllers/certificateController.js";
+import { verifyToken } from "../middleware/auth.js"; 
 
 const router = express.Router();
 
+router.get("/me", verifyToken, getMe);
+router.get('/dashboard-summary', verifyToken, getDashboardSummary);
 router.post("/login", login);
+router.post("/logout", logout);
+router.post("/register", register);
+router.patch('/update-progress', verifyToken, updateProgress);
+router.patch('/update-module-progress', verifyToken, updateModuleProgress);
+router.get('/my-certificates', verifyToken, getMyCertificates);
 
 export default router;

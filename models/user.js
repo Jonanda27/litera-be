@@ -1,39 +1,26 @@
 'use strict';
-import { Model } from 'sequelize';
+import { Model, DataTypes } from 'sequelize';
 
-export default (sequelize, DataTypes) => {
+export default (sequelize) => {
   class User extends Model {
-    /**
-     * Helper method for defining associations.
-     */
     static associate(models) {
-      // definisikan relasi di sini jika ada (contoh: User.hasMany(models.Post))
+      // User didampingi oleh Mentor
+      this.belongsTo(models.Mentor, { foreignKey: 'mentor_id', as: 'mentor' });
+      // User memiliki banyak Proyek
+      this.hasMany(models.Project, { foreignKey: 'user_id' });
+      // User memiliki catatan progres
+      this.hasMany(models.UserProgress, { foreignKey: 'user_id' });
     }
   }
-
   User.init({
-    email: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
-      validate: {
-        isEmail: true
-      }
-    },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-    role: {
-      type: DataTypes.ENUM('peserta', 'mentor', 'administrator'),
-      defaultValue: 'peserta',
-      allowNull: false
-    }
+    nama: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, unique: true, allowNull: false },
+    password: { type: DataTypes.STRING, allowNull: false },
+    level_saat_ini: DataTypes.STRING,
+    persentase_progres: { type: DataTypes.FLOAT, defaultValue: 0 }
   }, {
     sequelize,
     modelName: 'User',
-    tableName: 'Users', // Pastikan sesuai dengan nama tabel di migration
   });
-
   return User;
 };

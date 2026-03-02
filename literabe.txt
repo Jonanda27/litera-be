@@ -1,0 +1,1343 @@
+==================================================
+STRUKTUR FOLDER (DAFTAR FILE)
+==================================================
+litera-be/.env
+litera-be/a/contentSeeder.js
+litera-be/a/levelSeeder.js
+litera-be/a/mentorSeeder.js
+litera-be/a/userSeeder.js
+litera-be/app.js
+litera-be/config/config.json
+litera-be/controllers/authController.js
+litera-be/copy_project.py
+litera-be/middleware/auth.js
+litera-be/migrations/20260225093701-create-mentor.js
+litera-be/migrations/20260225093702-create-user.js
+litera-be/migrations/20260225093724-create-levels.js
+litera-be/migrations/20260225093735-create-moduls.js
+litera-be/migrations/20260225093743-create-lessons.js
+litera-be/migrations/20260225093751-create-project.js
+litera-be/migrations/20260225093810-create-user-progress.js
+litera-be/migrations/20260226034023-create-material.js
+litera-be/models/index.js
+litera-be/models/lesson.js
+litera-be/models/level.js
+litera-be/models/material.js
+litera-be/models/mentor.js
+litera-be/models/module.js
+litera-be/models/project.js
+litera-be/models/user.js
+litera-be/models/userprogress.js
+litera-be/package.json
+litera-be/routes/authRoutes.js
+litera-be/seeders/Seeder.js
+litera-be/server.js
+
+
+==================================================
+ISI KODE
+==================================================
+
+--- START FILE: litera-be/.env ---
+PORT=4000
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=litera_db
+DB_USER=postgres
+DB_PASS=admin
+JWT_SECRET=supersecret
+
+--- END FILE: litera-be/.env ---
+
+--- START FILE: litera-be/a/contentSeeder.js ---
+'use strict';
+
+export default {
+  async up(queryInterface, Sequelize) {
+    const levels = await queryInterface.sequelize.query(`SELECT id from "Levels" LIMIT 1;`);
+    const levelId = levels[0][0].id;
+
+    await queryInterface.bulkInsert('Modules', [{
+      level_id: levelId,
+      nama_modul: 'Pengenalan Literasi',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }], {});
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.bulkDelete('Modules', null, {});
+  }
+};
+--- END FILE: litera-be/a/contentSeeder.js ---
+
+--- START FILE: litera-be/a/levelSeeder.js ---
+'use strict';
+
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.bulkInsert('Levels', [{
+      nama_level: 'Basic',
+      deskripsi: 'Level dasar untuk pemula',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }], {});
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.bulkDelete('Levels', null, {});
+  }
+};
+--- END FILE: litera-be/a/levelSeeder.js ---
+
+--- START FILE: litera-be/a/mentorSeeder.js ---
+'use strict';
+import bcrypt from 'bcryptjs';
+
+export default {
+  async up(queryInterface, Sequelize) {
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    await queryInterface.bulkInsert('Mentors', [{
+      nama: 'Mentor Geocitra',
+      email: 'mentor@geocitra.com',
+      password: hashedPassword,
+      spesialisasi: 'Fullstack Developer',
+      kuota_peserta: 10,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }], {});
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.bulkDelete('Mentors', null, {});
+  }
+};
+--- END FILE: litera-be/a/mentorSeeder.js ---
+
+--- START FILE: litera-be/a/userSeeder.js ---
+'use strict';
+import bcrypt from 'bcryptjs';
+
+export default {
+  async up(queryInterface, Sequelize) {
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    
+    // Ambil ID mentor pertama untuk relasi
+    const mentors = await queryInterface.sequelize.query(`SELECT id from "Mentors" LIMIT 1;`);
+    const mentorId = mentors[0][0].id;
+
+    await queryInterface.bulkInsert('Users', [{
+      nama: 'Test User Geocitra',
+      email: 'test@geocitra.com',
+      password: hashedPassword,
+      mentor_id: mentorId,
+      level_saat_ini: 'Basic',
+      persentase_progres: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }], {});
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.bulkDelete('Users', null, {});
+  }
+};
+--- END FILE: litera-be/a/userSeeder.js ---
+
+--- START FILE: litera-be/app.js ---
+import express from "express";
+import cors from "cors";
+import authRoutes from "./routes/authRoutes.js"; // Import routes baru
+
+const app = express();
+
+app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+app.use(express.json());
+
+// Gunakan Routes
+app.use("/api/auth", authRoutes); 
+
+app.get("/", (req, res) => res.send("Backend aktif ✅"));
+
+export default app;
+--- END FILE: litera-be/app.js ---
+
+--- START FILE: litera-be/config/config.json ---
+{
+  "development": {
+    "username": "postgres",
+    "password": "admin",
+    "database": "litera_db",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "postgres",
+    "password": "admin",
+    "database": "litera_db_test",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "postgres",
+    "password": "admin",
+    "database": "litera_db",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  }
+}
+
+--- END FILE: litera-be/config/config.json ---
+
+--- START FILE: litera-be/controllers/authController.js ---
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { User, UserProgress,Mentor, Module, Lesson } from "../models/index.js";
+
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1. Cari di tabel User terlebih dahulu
+    let account = await User.findOne({ where: { email } });
+    let role = 'user';
+
+    // 2. Jika tidak ada di User, cari di tabel Mentor
+    if (!account) {
+      account = await Mentor.findOne({ where: { email } });
+      role = 'mentor';
+    }
+
+    if (!account) {
+      return res.status(404).json({ message: "Akun tidak ditemukan" });
+    }
+
+    // 3. Bandingkan password
+    const isPasswordValid = await bcrypt.compare(password, account.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Password salah" });
+    }
+
+    // 4. Buat JWT Token (Sertakan role hasil deteksi tadi)
+    const token = jwt.sign(
+      { id: account.id, role: role }, // Role otomatis terisi 'user' atau 'mentor'
+      process.env.JWT_SECRET || "rahasia_negara",
+      { expiresIn: "24h" }
+    );
+
+    res.status(200).json({
+      message: "Login berhasil",
+      token,
+      user: {
+        id: account.id,
+        email: account.email,
+        role: role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Terjadi kesalahan server", error: error.message });
+  }
+};
+
+export const register = async (req, res) => {
+  try {
+    const { nama, email, password, confPassword } = req.body; // Gunakan 'nama' sesuai migrasi
+
+    if (password !== confPassword) {
+      return res.status(400).json({ message: "Password dan Confirm Password tidak cocok" });
+    }
+
+    const userExists = await User.findOne({ where: { email } });
+    if (userExists) {
+      return res.status(400).json({ message: "Email sudah digunakan" });
+    }
+
+    const salt = await bcrypt.genSalt();
+    const hashPassword = await bcrypt.hash(password, salt);
+
+    await User.create({
+      nama: nama, // Sesuai kolom di DB
+      email: email,
+      password: hashPassword
+      // role tidak perlu diisi karena sudah beda tabel
+    });
+
+    res.status(201).json({ message: "Registrasi Berhasil!" });
+  } catch (error) {
+    res.status(500).json({ message: "Terjadi kesalahan server", error: error.message });
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findOne({
+      where: { id: userId },
+      attributes: ['id', 'nama', 'email', 'level_saat_ini'] // [cite: 39, 137]
+    });
+
+    if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
+
+    // Ambil data semua modul yang ada [cite: 129]
+    const allModules = await Module.findAll({ attributes: ['id'] });
+
+    // Hitung progres untuk setiap modul secara dinamis
+    const moduleProgressMap = {};
+    
+    for (const mod of allModules) {
+      const totalInMod = await Lesson.count({ where: { module_id: mod.id } });
+      const completedInMod = await UserProgress.count({
+        where: { user_id: userId, module_id: mod.id, status_selesai: true }
+      });
+      
+      moduleProgressMap[mod.id] = totalInMod > 0 
+        ? Math.round((completedInMod / totalInMod) * 100) 
+        : 0;
+    }
+
+    res.status(200).json({
+      ...user.toJSON(),
+      moduleProgress: moduleProgressMap // Contoh: { "1": 100, "2": 9 }
+    });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+export const getDashboardSummary = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // 1. Ambil data user
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+
+    // 2. Ambil modul
+    // Kita gunakan logika yang sama dengan getMe (ambil semua modul) 
+    // agar tidak muncul pesan "Belum ada modul" jika level_id user null
+    const allModules = await Module.findAll({ 
+      attributes: ['id', 'nama_modul'],
+      order: [['id', 'ASC']]
+    });
+
+    if (!allModules || allModules.length === 0) {
+      return res.status(200).json({ 
+        persentase_progres: 0, 
+        message: "Data modul tidak ditemukan di database" 
+      });
+    }
+
+    const moduleProgressMap = {};
+    let totalCompletedModules = 0;
+
+    // 3. Hitung progres tiap modul (Logika Identik dengan getMe)
+    for (const mod of allModules) {
+      const totalInMod = await Lesson.count({ where: { module_id: mod.id } });
+      const completedInMod = await UserProgress.count({
+        where: { 
+          user_id: userId, 
+          module_id: mod.id, 
+          status_selesai: true 
+        }
+      });
+      
+      const percent = totalInMod > 0 ? Math.round((completedInMod / totalInMod) * 100) : 0;
+      
+      // Simpan hasil ke map (seperti output getMe)
+      moduleProgressMap[mod.id] = percent;
+
+      // LOGIKA UTAMA: Jika progres modul sudah 100, tambahkan ke penghitung modul tuntas
+      if (percent === 100) {
+        totalCompletedModules++;
+      }
+    }
+
+    /**
+     * 4. Hitung Persentase Level
+     * Jika Level 1 dianggap terdiri dari 5 modul, maka:
+     * 1 modul tuntas = 20%
+     * 2 modul tuntas = 40%
+     * dst.
+     */
+    const totalModulDiLevel = 5; // Anda bisa ganti allModules.length jika ingin dinamis
+    const levelPercentage = Math.round((totalCompletedModules / totalModulDiLevel) * 100);
+
+    // 5. Tentukan Modul Aktif (modul pertama yang belum 100%)
+    const activeModule = allModules.find(m => moduleProgressMap[m.id] < 100) || allModules[allModules.length - 1];
+
+    // Response Akhir
+    res.status(200).json({
+      nama: user.nama,
+      level_saat_ini: user.level_saat_ini || "Level 1: Dasar Literasi",
+      persentase_progres: levelPercentage > 100 ? 100 : levelPercentage, // Bar Besar (0, 20, 40...)
+      moduleProgress: moduleProgressMap, // Detail seperti getMe { "1": 100, "2": 9 }
+      currentModule: {
+        id: activeModule.id,
+        title: activeModule.nama_modul,
+        progress: moduleProgressMap[activeModule.id] // Progres asli modul (misal 9%)
+      },
+      message: `Anda telah menyelesaikan ${totalCompletedModules} modul sepenuhnya.`
+    });
+
+  } catch (error) {
+    console.error("Dashboard Error:", error);
+    res.status(500).json({ 
+      message: "Terjadi kesalahan server", 
+      error: error.message 
+    });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    /* Jika kamu menggunakan Cookies (HttpOnly), aktifkan baris ini:
+       res.clearCookie('token'); 
+    */
+
+    return res.status(200).json({ 
+      message: "Logout berhasil. Silakan hapus token dari storage Anda." 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: "Terjadi kesalahan saat logout", 
+      error: error.message 
+    });
+  }
+};
+
+export const updateProgress = async (req, res) => {
+  try {
+    const { id } = req.user; // Diambil dari middleware verifyToken
+    const { increment } = req.body; // Kita kirim berapa persen kenaikannya, misal 5
+
+    // 1. Cari user
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+
+    // 2. Hitung progres baru (max 100)
+    const currentProgress = user.persentase_progres || 0;
+    const newProgress = Math.min(currentProgress + increment, 100);
+
+    // 3. Simpan ke database
+    await User.update(
+      { persentase_progres: newProgress },
+      { where: { id: id } }
+    );
+
+    res.status(200).json({ 
+      message: "Progres berhasil diperbarui", 
+      newProgress 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateModuleProgress = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { lessonId, moduleId } = req.body;
+
+    // 1. Simpan materi yang selesai ke tabel User_Progress [cite: 57, 142]
+    await UserProgress.findOrCreate({
+      where: { 
+        user_id: userId, 
+        lesson_id: lessonId, 
+        module_id: moduleId 
+      },
+      defaults: { status_selesai: true }
+    });
+
+    // 2. Hitung jumlah materi yang sudah selesai di modul ini [cite: 58]
+    const completedCount = await UserProgress.count({
+      where: { 
+        user_id: userId, 
+        module_id: moduleId, 
+        status_selesai: true 
+      }
+    });
+
+    // 3. Ambil total materi yang ada untuk modul ini dari tabel Lessons [cite: 115, 116]
+    const totalMaterials = await Lesson.count({
+      where: { module_id: moduleId }
+    });
+
+    // 4. Hitung persentase progres modul tersebut [cite: 60]
+    const percentage = totalMaterials > 0 ? Math.round((completedCount / totalMaterials) * 100) : 0;
+
+    // 5. Update persentase_progres di tabel User (sebagai penanda progres terakhir) [cite: 60, 137]
+    await User.update(
+      { persentase_progres: percentage }, 
+      { where: { id: userId } }
+    );
+
+    res.status(200).json({ 
+      success: true,
+      newProgress: percentage,
+      completedSteps: completedCount,
+      totalSteps: totalMaterials,
+      moduleId: moduleId
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+--- END FILE: litera-be/controllers/authController.js ---
+
+--- START FILE: litera-be/copy_project.py ---
+import os
+from pathlib import Path    
+
+# --- KONFIGURASI ---
+TARGET_DIRECTORY = "C:\\Users\ASUS\\Documents\\gthub\\litera-be"
+OUTPUT_FILE = "C:\\Users\\ASUS\\Documents\\gthub\\litera-be\\literabe.txt"
+
+# Tambahkan pengecualian direktori lintas ekosistem
+EXCLUDE_DIRS = {
+    "node_modules", ".git", "dist", "build", "__pycache__", ".vscode", ".idea", "venv",
+    ".next", ".nuxt", ".svelte-kit", ".angular", ".cache", ".parcel-cache", ".vite",
+    ".docusaurus", ".astro", ".storybook", ".turbo",
+    "coverage", ".nyc_output", "jspm_packages", "bower_components", "elm-stuff",
+    ".dart_tool", ".pub", ".pub-cache", "DerivedData", "android", "ios", "web/build",
+    "vendor", "storage", "public/build", "public/storage", "assets",
+    ".venv", "env", ".mypy_cache", ".pytest_cache", ".tox", ".nox",
+    "build", "dist",
+    ".gradle", ".mvn", "target", "out", ".settings", ".cxx",
+    "bin", "obj", ".vs", "packages",
+    "bin", "pkg", "vendor",
+    "target",
+    "Pods", "DerivedData",
+    ".bundle", "log", "tmp", "vendor/bundle", 
+    "dist-newstyle", "cmake-build-debug", "cmake-build-release", ".terraform",
+}
+
+# Tambahkan pengecualian file lintas ekosistem (nama persis)
+EXCLUDE_FILES = {
+    ".DS_Store", "package-lock.json", "yarn.lock", "Readme.md", "README.txt", "README.md",
+
+    # Lockfiles & manifest lain
+    "pnpm-lock.yaml", "bun.lockb", "composer.lock", "pubspec.lock",
+    "Gemfile.lock", "Pipfile.lock", "poetry.lock", "Cargo.lock",
+    "mix-manifest.json", "vite-manifest.json",
+
+    # Env (tanpa wildcard → tambahkan varian umum)
+    ".env.development", ".env.production", ".env.test", ".env.example",
+
+    # Tools/metadata umum
+    ".flutter-plugins", ".flutter-plugins-dependencies", ".packages",
+    ".phpunit.result.cache",
+
+    # Android/iOS/Xcode umpan balik build (file)
+    "Generated.xcconfig", "LocalProperties.kt",
+}
+
+# Opsional: Jika Anda HANYA ingin menyalin ekstensi tertentu, isi daftar ini.
+# Contoh: INCLUDE_EXTENSIONS = {".ts", ".tsx", ".css"}
+# Jika dibiarkan kosong, skrip akan menyalin SEMUA file teks yang ditemukan.
+INCLUDE_EXTENSIONS = {}
+
+def is_binary(file_path: Path) -> bool:
+    try:
+        with open(file_path, 'rb') as f:
+            return b'\x00' in f.read(512)
+    except Exception:
+        return True
+
+def main():
+    target_path = Path(TARGET_DIRECTORY)
+    if not target_path.is_dir():
+        print(f"Error: Folder '{TARGET_DIRECTORY}' tidak ditemukan.")
+        return
+
+    print(f"Memproses folder: {target_path.resolve()}")
+
+    files_to_process = []
+    for file_path in sorted(target_path.rglob("*")):
+        if any(part in EXCLUDE_DIRS for part in file_path.parts):
+            continue
+
+        if file_path.is_file() and file_path.name not in EXCLUDE_FILES:
+            if INCLUDE_EXTENSIONS and file_path.suffix not in INCLUDE_EXTENSIONS:
+                continue
+            if not is_binary(file_path):
+                files_to_process.append(file_path)
+
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        f.write("="*50 + "\n")
+        f.write("STRUKTUR FOLDER (DAFTAR FILE)\n")
+        f.write("="*50 + "\n")
+        if not files_to_process:
+            f.write("Tidak ada file yang ditemukan.\n")
+        else:
+            for file_path in files_to_process:
+                relative_path = file_path.relative_to(target_path.parent)
+                f.write(str(relative_path).replace("\\", "/"))
+                f.write("\n")
+        f.write("\n\n")
+
+        f.write("="*50 + "\n")
+        f.write("ISI KODE\n")
+        f.write("="*50 + "\n\n")
+        
+        for file_path in files_to_process:
+            try:
+                content = file_path.read_text("utf-8", errors="ignore")
+                relative_path = file_path.relative_to(target_path.parent)
+                
+                f.write(f"--- START FILE: {str(relative_path).replace(os.sep, '/')} ---\n")
+                f.write(content)
+                f.write(f"\n--- END FILE: {str(relative_path).replace(os.sep, '/')} ---\n\n")
+                print(f"-> Menyalin konten: {relative_path}")
+            except Exception as e:
+                print(f"-> Gagal membaca: {relative_path} ({e})")
+
+    print(f"\nProses selesai! Output disimpan di '{OUTPUT_FILE}'.")
+
+if __name__ == "__main__":
+    main()
+
+--- END FILE: litera-be/copy_project.py ---
+
+--- START FILE: litera-be/middleware/auth.js ---
+import jwt from 'jsonwebtoken';
+
+export const verifyRole = (roles = []) => {
+    return (req, res, next) => {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if (!token) return res.status(401).json({ message: 'Akses ditolak, token hilang' });
+
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || "rahasia_negara");
+            
+            // SIMPAN KE req.user DAN req.userId AGAR SINKRON
+            req.user = decoded; 
+            req.userId = decoded.id; // Mengambil 'id' dari payload JWT
+
+            if (roles.length && !roles.includes(req.user.role)) {
+                return res.status(403).json({ message: 'Anda tidak memiliki akses!' });
+            }
+            next();
+        } catch (err) {
+            res.status(401).json({ message: 'Token tidak valid atau kadaluwarsa' });
+        }
+    };
+};
+
+export const verifyToken = verifyRole([]);
+--- END FILE: litera-be/middleware/auth.js ---
+
+--- START FILE: litera-be/migrations/20260225093701-create-mentor.js ---
+'use strict';
+
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('Mentors', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      nama: { type: Sequelize.STRING, allowNull: false },
+      email: { type: Sequelize.STRING, unique: true, allowNull: false },
+      password: { type: Sequelize.STRING, allowNull: false },
+      spesialisasi: { type: Sequelize.STRING },
+      kuota_peserta: { type: Sequelize.INTEGER },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('Mentors');
+  }
+};
+--- END FILE: litera-be/migrations/20260225093701-create-mentor.js ---
+
+--- START FILE: litera-be/migrations/20260225093702-create-user.js ---
+'use strict';
+
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('Users', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      mentor_id: {
+        type: Sequelize.INTEGER,
+        references: { model: 'Mentors', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL'
+      },
+      nama: { type: Sequelize.STRING, allowNull: false },
+      email: { type: Sequelize.STRING, unique: true, allowNull: false },
+      password: { type: Sequelize.STRING, allowNull: false },
+      level_saat_ini: { type: Sequelize.STRING },
+      persentase_progres: { type: Sequelize.FLOAT, defaultValue: 0 },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('Users');
+  }
+};
+--- END FILE: litera-be/migrations/20260225093702-create-user.js ---
+
+--- START FILE: litera-be/migrations/20260225093724-create-levels.js ---
+'use strict';
+
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('Levels', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      nama_level: { type: Sequelize.STRING, allowNull: false },
+      deskripsi: { type: Sequelize.TEXT },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('Levels');
+  }
+};
+--- END FILE: litera-be/migrations/20260225093724-create-levels.js ---
+
+--- START FILE: litera-be/migrations/20260225093735-create-moduls.js ---
+'use strict';
+
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('Modules', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      level_id: {
+        type: Sequelize.INTEGER,
+        references: { model: 'Levels', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      nama_modul: { type: Sequelize.STRING, allowNull: false },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('Modules');
+  }
+};
+--- END FILE: litera-be/migrations/20260225093735-create-moduls.js ---
+
+--- START FILE: litera-be/migrations/20260225093743-create-lessons.js ---
+'use strict';
+
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('Lessons', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      module_id: {
+        type: Sequelize.INTEGER,
+        references: { model: 'Modules', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      judul_materi: { type: Sequelize.STRING },
+      tipe_konten: { type: Sequelize.STRING },
+      url_konten: { type: Sequelize.STRING },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('Lessons');
+  }
+};
+--- END FILE: litera-be/migrations/20260225093743-create-lessons.js ---
+
+--- START FILE: litera-be/migrations/20260225093751-create-project.js ---
+'use strict';
+
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('Projects', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      user_id: {
+        type: Sequelize.INTEGER,
+        references: { model: 'Users', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      judul_buku: { type: Sequelize.STRING },
+      deskripsi: { type: Sequelize.TEXT },
+      kendala: { type: Sequelize.TEXT },
+      status: { type: Sequelize.STRING },
+      update_terakhir: { type: Sequelize.DATE },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('Projects');
+  }
+};
+--- END FILE: litera-be/migrations/20260225093751-create-project.js ---
+
+--- START FILE: litera-be/migrations/20260225093810-create-user-progress.js ---
+'use strict';
+
+/** @type {import('sequelize-cli').Migration} */
+// Gunakan export default, bukan module.exports
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('User_Progress', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      user_id: {
+        type: Sequelize.INTEGER,
+        references: { model: 'Users', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      // WAJIB: Tambahkan module_id untuk mendukung progres per modul
+      module_id: { 
+        type: Sequelize.INTEGER,
+        references: { model: 'Modules', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      lesson_id: {
+        type: Sequelize.INTEGER,
+        references: { model: 'Lessons', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      status_selesai: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false
+      },
+      createdAt: {
+        allowNull: false,
+        type: Sequelize.DATE
+      },
+      updatedAt: {
+        allowNull: false,
+        type: Sequelize.DATE
+      }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('User_Progress');
+  }
+};
+--- END FILE: litera-be/migrations/20260225093810-create-user-progress.js ---
+
+--- START FILE: litera-be/migrations/20260226034023-create-material.js ---
+'use strict';
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable('Materials', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      module_id: {
+        type: Sequelize.INTEGER,
+        references: { model: 'Modules', key: 'id' }, // Tambahkan relasi
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      tipe: {
+        type: Sequelize.STRING
+      },
+      judul: {
+        type: Sequelize.STRING
+      },
+      order: {
+        type: Sequelize.INTEGER
+      },
+      createdAt: {
+        allowNull: false,
+        type: Sequelize.DATE
+      },
+      updatedAt: {
+        allowNull: false,
+        type: Sequelize.DATE
+      }
+    });
+  },
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('Materials');
+  }
+};
+--- END FILE: litera-be/migrations/20260226034023-create-material.js ---
+
+--- START FILE: litera-be/models/index.js ---
+'use strict';
+
+import { Sequelize, DataTypes } from "sequelize";
+import userModel from "./user.js";
+import mentorModel from "./mentor.js";
+import levelModel from "./level.js";
+import moduleModel from "./module.js";
+import lessonModel from "./lesson.js";
+import projectModel from "./project.js";
+import userProgressModel from "./userprogress.js";
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASS,
+  {
+    host: process.env.DB_HOST,
+    dialect: "postgres",
+    logging: false,
+  }
+);
+
+const db = {};
+
+// Inisialisasi model
+db.Mentor = mentorModel(sequelize, DataTypes);
+db.Level = levelModel(sequelize, DataTypes);
+db.User = userModel(sequelize, DataTypes);
+db.Module = moduleModel(sequelize, DataTypes);
+db.Lesson = lessonModel(sequelize, DataTypes);
+db.Project = projectModel(sequelize, DataTypes);
+db.UserProgress = userProgressModel(sequelize, DataTypes);
+
+// Jalankan asosiasi
+Object.keys(db).forEach((modelName) => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
+
+export { sequelize, Sequelize, DataTypes };
+export const { Mentor, Level, User, Module, Lesson, Project, UserProgress } = db;
+export default db;
+--- END FILE: litera-be/models/index.js ---
+
+--- START FILE: litera-be/models/lesson.js ---
+'use strict';
+import { Model, DataTypes } from 'sequelize';
+
+export default (sequelize) => {
+  class Lesson extends Model {
+    static associate(models) {
+      this.belongsTo(models.Module, { foreignKey: 'module_id' });
+      this.hasMany(models.UserProgress, { foreignKey: 'lesson_id' });
+    }
+  }
+  Lesson.init({
+    judul_materi: DataTypes.STRING,
+    tipe_konten: DataTypes.STRING,
+    url_konten: DataTypes.STRING
+  }, {
+    sequelize,
+    modelName: 'Lesson',
+  });
+  return Lesson;
+};
+--- END FILE: litera-be/models/lesson.js ---
+
+--- START FILE: litera-be/models/level.js ---
+'use strict';
+import { Model, DataTypes } from 'sequelize';
+
+export default (sequelize) => {
+  class Level extends Model {
+    static associate(models) {
+      // Relasi One-to-Many: Satu Level punya banyak Modul
+      this.hasMany(models.Module, { foreignKey: 'level_id' });
+    }
+  }
+  Level.init({
+    nama_level: { type: DataTypes.STRING, allowNull: false },
+    deskripsi: DataTypes.TEXT
+  }, {
+    sequelize,
+    modelName: 'Level',
+  });
+  return Level;
+};
+--- END FILE: litera-be/models/level.js ---
+
+--- START FILE: litera-be/models/material.js ---
+'use strict';
+const {
+  Model
+} = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class Material extends Model {
+    /**
+     * Helper method for defining associations.
+     * This method is not a part of Sequelize lifecycle.
+     * The `models/index` file will call this method automatically.
+     */
+    static associate(models) {
+      // define association here
+    }
+  }
+  Material.init({
+    module_id: DataTypes.INTEGER,
+    tipe: DataTypes.STRING,
+    judul: DataTypes.STRING,
+    order: DataTypes.INTEGER
+  }, {
+    sequelize,
+    modelName: 'Material',
+  });
+  return Material;
+};
+--- END FILE: litera-be/models/material.js ---
+
+--- START FILE: litera-be/models/mentor.js ---
+'use strict';
+import { Model, DataTypes } from 'sequelize';
+
+export default (sequelize) => {
+  class Mentor extends Model {
+    static associate(models) {
+      // Relasi One-to-Many: Satu Mentor mendampingi banyak User
+      this.hasMany(models.User, { foreignKey: 'mentor_id', as: 'students' });
+    }
+  }
+  Mentor.init({
+    nama: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, unique: true, allowNull: false },
+    password: { type: DataTypes.STRING, allowNull: false },
+    spesialisasi: DataTypes.STRING,
+    kuota_peserta: DataTypes.INTEGER
+  }, {
+    sequelize,
+    modelName: 'Mentor',
+  });
+  return Mentor;
+};
+--- END FILE: litera-be/models/mentor.js ---
+
+--- START FILE: litera-be/models/module.js ---
+'use strict';
+import { Model, DataTypes } from 'sequelize';
+
+export default (sequelize) => {
+  class Module extends Model {
+    static associate(models) {
+      this.belongsTo(models.Level, { foreignKey: 'level_id' });
+      this.hasMany(models.Lesson, { foreignKey: 'module_id' });
+    }
+  }
+  Module.init({
+    nama_modul: { type: DataTypes.STRING, allowNull: false }
+  }, {
+    sequelize,
+    modelName: 'Module',
+  });
+  return Module;
+};
+--- END FILE: litera-be/models/module.js ---
+
+--- START FILE: litera-be/models/project.js ---
+'use strict';
+import { Model, DataTypes } from 'sequelize';
+
+export default (sequelize) => {
+  class Project extends Model {
+    static associate(models) {
+      this.belongsTo(models.User, { foreignKey: 'user_id' });
+    }
+  }
+  Project.init({
+    judul_buku: DataTypes.STRING,
+    deskripsi: DataTypes.TEXT,
+    kendala: DataTypes.TEXT,
+    status: DataTypes.STRING,
+    update_terakhir: DataTypes.DATE
+  }, {
+    sequelize,
+    modelName: 'Project',
+  });
+  return Project;
+};
+--- END FILE: litera-be/models/project.js ---
+
+--- START FILE: litera-be/models/user.js ---
+'use strict';
+import { Model, DataTypes } from 'sequelize';
+
+export default (sequelize) => {
+  class User extends Model {
+    static associate(models) {
+      // User didampingi oleh Mentor
+      this.belongsTo(models.Mentor, { foreignKey: 'mentor_id', as: 'mentor' });
+      // User memiliki banyak Proyek
+      this.hasMany(models.Project, { foreignKey: 'user_id' });
+      // User memiliki catatan progres
+      this.hasMany(models.UserProgress, { foreignKey: 'user_id' });
+    }
+  }
+  User.init({
+    nama: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, unique: true, allowNull: false },
+    password: { type: DataTypes.STRING, allowNull: false },
+    level_saat_ini: DataTypes.STRING,
+    persentase_progres: { type: DataTypes.FLOAT, defaultValue: 0 }
+  }, {
+    sequelize,
+    modelName: 'User',
+  });
+  return User;
+};
+--- END FILE: litera-be/models/user.js ---
+
+--- START FILE: litera-be/models/userprogress.js ---
+'use strict';
+import { Model, DataTypes } from 'sequelize';
+
+export default (sequelize) => {
+  class UserProgress extends Model {
+    static associate(models) {
+      // Pastikan setiap relasi dipisahkan dengan titik koma (;)
+      this.belongsTo(models.User, { foreignKey: 'user_id' });
+      this.belongsTo(models.Lesson, { foreignKey: 'lesson_id' });
+      this.belongsTo(models.Module, { foreignKey: 'module_id' });
+    }
+  }
+
+  UserProgress.init({
+    // Pastikan setiap properti dipisahkan dengan koma (,)
+    user_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    module_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    lesson_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    status_selesai: { 
+      type: DataTypes.BOOLEAN, 
+      defaultValue: false 
+    }
+  }, {
+    sequelize,
+    modelName: 'UserProgress',
+    tableName: 'User_Progress'
+  });
+
+  return UserProgress;
+};
+--- END FILE: litera-be/models/userprogress.js ---
+
+--- START FILE: litera-be/package.json ---
+{
+  "name": "litera-be",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.18.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "sequelize-cli": "^6.6.5"
+  }
+}
+
+--- END FILE: litera-be/package.json ---
+
+--- START FILE: litera-be/routes/authRoutes.js ---
+import express from "express";
+import { login, logout,register,getMe,getDashboardSummary,updateProgress,updateModuleProgress } from "../controllers/authController.js";
+import { verifyToken } from "../middleware/auth.js"; 
+
+const router = express.Router();
+
+router.get("/me", verifyToken, getMe);
+router.get('/dashboard-summary', verifyToken, getDashboardSummary);
+router.post("/login", login);
+router.post("/logout", logout);
+router.post("/register", register);
+router.patch('/update-progress', verifyToken, updateProgress);
+router.patch('/update-module-progress', verifyToken, updateModuleProgress);
+
+export default router;
+--- END FILE: litera-be/routes/authRoutes.js ---
+
+--- START FILE: litera-be/seeders/Seeder.js ---
+'use strict';
+import bcrypt from 'bcryptjs';
+
+/** @type {import('sequelize-cli').Migration} */
+export default {
+  async up(queryInterface, Sequelize) {
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    const now = new Date();
+
+    // 1. Seed Mentors
+    await queryInterface.bulkInsert('Mentors', [{
+      nama: 'Prabawa Subiyanta',
+      email: 'mentor@geocitra.com',
+      password: hashedPassword,
+      spesialisasi: 'Literasi & Menulis',
+      kuota_peserta: 50,
+      createdAt: now,
+      updatedAt: now
+    }], {});
+
+    const [mentors] = await queryInterface.sequelize.query('SELECT id FROM "Mentors" LIMIT 1;');
+    const mentorId = mentors[0].id;
+
+    // 2. Seed Levels
+    await queryInterface.bulkInsert('Levels', [{
+      nama_level: 'Level 1: Dasar-Dasar Literasi',
+      deskripsi: 'Tahap awal pengembangan kemampuan membaca dan menulis sehat.',
+      createdAt: now,
+      updatedAt: now
+    }], {});
+
+    const [levels] = await queryInterface.sequelize.query('SELECT id FROM "Levels" LIMIT 1;');
+    const levelId = levels[0].id;
+
+    // 3. Seed Modules
+    await queryInterface.bulkInsert('Modules', [
+      {
+        level_id: levelId,
+        nama_modul: 'Level-1/Modul-1',
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        level_id: levelId,
+        nama_modul: 'Level-1/Modul-2',
+        createdAt: now,
+        updatedAt: now
+      }
+    ], {});
+
+    // Ambil ID untuk Modul 1 dan Modul 2
+    const [mod1] = await queryInterface.sequelize.query('SELECT id FROM "Modules" WHERE "nama_modul" = \'Level-1/Modul-1\' LIMIT 1;');
+    const [mod2] = await queryInterface.sequelize.query('SELECT id FROM "Modules" WHERE "nama_modul" = \'Level-1/Modul-2\' LIMIT 1;');
+    
+    const moduleId1 = mod1[0].id;
+    const moduleId2 = mod2[0].id;
+
+    // 4. Seed Lessons untuk Modul 1 (11 Materi)
+    await queryInterface.bulkInsert('Lessons', [
+      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 1', url_konten: 'https://example.com/pdf1', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 1', url_konten: 'https://youtube.com/watch?v=1', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 2', url_konten: 'https://example.com/pdf2', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 2', url_konten: 'https://youtube.com/watch?v=2', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 3', url_konten: 'https://example.com/pdf3', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 3', url_konten: 'https://youtube.com/watch?v=3', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 4', url_konten: 'https://example.com/pdf4', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 4', url_konten: 'https://youtube.com/watch?v=4', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 5', url_konten: 'https://example.com/pdf5', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 5', url_konten: 'https://youtube.com/watch?v=5', createdAt: now, updatedAt: now },
+      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Evaluasi Membaca 1', url_konten: 'https://example.com/pdf6', createdAt: now, updatedAt: now }
+    ], {});
+
+    // 5. Seed Lessons untuk Modul 2 (11 Materi)
+    await queryInterface.bulkInsert('Lessons', [
+      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 1', url_konten: 'https://example.com/mod2-pdf1', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 1', url_konten: 'https://youtube.com/watch?v=m2-1', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 2', url_konten: 'https://example.com/mod2-pdf2', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 2', url_konten: 'https://youtube.com/watch?v=m2-2', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 3', url_konten: 'https://example.com/mod2-pdf3', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 3', url_konten: 'https://youtube.com/watch?v=m2-3', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 4', url_konten: 'https://example.com/mod2-pdf4', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 4', url_konten: 'https://youtube.com/watch?v=m2-4', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 5', url_konten: 'https://example.com/mod2-pdf5', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 5', url_konten: 'https://youtube.com/watch?v=m2-5', createdAt: now, updatedAt: now },
+      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Evaluasi Modul 2', url_konten: 'https://example.com/mod2-pdf6', createdAt: now, updatedAt: now }
+    ], {});
+
+    // 6. Seed Users
+    await queryInterface.bulkInsert('Users', [{
+      nama: 'Jonanda Pantas',
+      email: 'test@geocitra.com',
+      password: hashedPassword,
+      mentor_id: mentorId,
+      level_saat_ini: 'Level 1: Dasar-Dasar Literasi',
+      persentase_progres: 0,
+      createdAt: now,
+      updatedAt: now
+    }], {});
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.bulkDelete('Lessons', null, {});
+    await queryInterface.bulkDelete('Modules', null, {});
+    await queryInterface.bulkDelete('Users', null, {});
+    await queryInterface.bulkDelete('Levels', null, {});
+    await queryInterface.bulkDelete('Mentors', null, {});
+  }
+};
+--- END FILE: litera-be/seeders/Seeder.js ---
+
+--- START FILE: litera-be/server.js ---
+import "dotenv/config";
+import app from "./app.js";
+
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`🚀 Backend running http://localhost:${PORT}`);
+});
+
+--- END FILE: litera-be/server.js ---
+
