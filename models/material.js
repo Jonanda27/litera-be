@@ -1,8 +1,7 @@
 'use strict';
-const {
-  Model
-} = require('sequelize');
-module.exports = (sequelize, DataTypes) => {
+import { Model, DataTypes } from 'sequelize';
+
+export default (sequelize) => {
   class Material extends Model {
     /**
      * Helper method for defining associations.
@@ -10,17 +9,35 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      // Menghubungkan Material ke sebuah Module [cite: 235]
+      this.belongsTo(models.Module, { 
+        foreignKey: 'module_id',
+        as: 'module' 
+      });
     }
   }
+
   Material.init({
-    module_id: DataTypes.INTEGER,
-    tipe: DataTypes.STRING,
-    judul: DataTypes.STRING,
-    order: DataTypes.INTEGER
+    module_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    tipe: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    judul: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    order: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    }
   }, {
     sequelize,
     modelName: 'Material',
   });
+
   return Material;
 };

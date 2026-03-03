@@ -10,7 +10,7 @@ export default {
     // 1. Seed Mentors
     await queryInterface.bulkInsert('Mentors', [{
       nama: 'Prabawa Subiyanta',
-      email: 'mentor3@geocitra.com',
+      email: 'mentor2@geocitra.com',
       password: hashedPassword,
       spesialisasi: 'Literasi & Menulis',
       kuota_peserta: 50,
@@ -86,9 +86,10 @@ export default {
     ], {});
 
     // 6. Seed Users
+    const targetEmail = 'test2@geocitra.com'; // Gunakan variabel agar tidak salah ketik
     await queryInterface.bulkInsert('Users', [{
       nama: 'Jonanda Pantas',
-      email: 'test3@geocitra.com',
+      email: targetEmail,
       password: hashedPassword,
       mentor_id: mentorId,
       level_saat_ini: 'Level 1: Dasar-Dasar Literasi',
@@ -97,11 +98,11 @@ export default {
       updatedAt: now
     }], {});
 
-    // --- TAMBAHAN SEEDER SERTIFIKAT ---
-    // 7. Seed Certificates
-    const [users] = await queryInterface.sequelize.query('SELECT id FROM "Users" WHERE "email" = \'test@geocitra.com\' LIMIT 1;');
+    // --- PERBAIKAN DI SINI: Gunakan targetEmail yang sama ---
+    const [users] = await queryInterface.sequelize.query(`SELECT id FROM "Users" WHERE "email" = '${targetEmail}' LIMIT 1;`);
     const userId = users[0].id;
 
+    // 7. Seed Certificates
     await queryInterface.bulkInsert('Certificates', [
       {
         user_id: userId,
@@ -125,7 +126,7 @@ export default {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.bulkDelete('Certificates', null, {}); // Hapus sertifikat dulu karena ada relation
+    await queryInterface.bulkDelete('Certificates', null, {});
     await queryInterface.bulkDelete('Lessons', null, {});
     await queryInterface.bulkDelete('Modules', null, {});
     await queryInterface.bulkDelete('Users', null, {});
