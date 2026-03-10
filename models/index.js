@@ -25,6 +25,7 @@ import timelineModel from "./timeline.js";
 import chapterVersionModel from "./chapterversion.js";
 import reviewCommentModel from "./reviewcomment.js";
 import dailyWordCountModel from "./dailywordcount.js";
+import meetingModel from "./meeting.js"
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -48,6 +49,7 @@ db.Lesson = lessonModel(sequelize, DataTypes);
 db.Project = projectModel(sequelize, DataTypes);
 db.UserProgress = userProgressModel(sequelize, DataTypes);
 db.Certificate = certificateModel(sequelize, DataTypes);
+db.Meeting = meetingModel(sequelize, DataTypes);
 
 // --- Inisialisasi Model Penulisan Buku ---
 db.Book = bookModel(sequelize, DataTypes);
@@ -122,7 +124,6 @@ db.ChapterVersion.belongsTo(db.Chapter, { foreignKey: 'chapterId' });
 db.Chapter.hasMany(db.ReviewComment, { foreignKey: 'chapterId', as: 'comments' });
 db.ReviewComment.belongsTo(db.Chapter, { foreignKey: 'chapterId' });
 
-
 // 3. Jalankan asosiasi otomatis (Untuk model lama yang mendefinisikan associate di filenya) 
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate) {
@@ -133,10 +134,10 @@ Object.keys(db).forEach((modelName) => {
 export { sequelize, Sequelize, DataTypes };
 
 // 4. Export semua model agar bisa di-destructure [cite: 538]
-export const { 
+export const {
   Mentor, Level, User, Module, Lesson, Project, UserProgress, Certificate,
-  Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea, 
-  Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount // Tambahkan DailyWordCount di sini
+  Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea,
+  Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount, Meeting // Tambahkan DailyWordCount di sini
 } = db;
 
 export default db;

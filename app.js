@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js"; // Asumsi kamu sudah menambahkannya
+import meetingRoutes from "./routes/meetingRoutes.js";
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // Gunakan Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
+app.use("/api/meetings", meetingRoutes);
 
 app.get("/", (req, res) => res.send("Backend aktif ✅"));
 
