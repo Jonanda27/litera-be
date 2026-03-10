@@ -6,10 +6,10 @@ export default (sequelize) => {
     static associate(models) {
       // User didampingi oleh Mentor [cite: 370]
       this.belongsTo(models.Mentor, { foreignKey: 'mentor_id', as: 'mentor' });
-      
+
       // User memiliki banyak Proyek [cite: 371]
       this.hasMany(models.Project, { foreignKey: 'user_id' });
-      
+
       // User memiliki catatan progres [cite: 372]
       this.hasMany(models.UserProgress, { foreignKey: 'user_id' });
 

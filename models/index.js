@@ -30,6 +30,7 @@ import nonFictionSourceModel from "./nonfictionsource.js";
 import chapterVersionModel from "./chapterversion.js";
 import reviewCommentModel from "./reviewcomment.js";
 import dailyWordCountModel from "./dailywordcount.js";
+import meetingModel from "./meeting.js"
 
 // --- TAMBAHAN UNTUK FITUR CHAT & DISKUSI ---
 import chatMessageModel from "./chatmessage.js"; 
@@ -60,6 +61,7 @@ db.Lesson = lessonModel(sequelize, DataTypes);
 db.Project = projectModel(sequelize, DataTypes);
 db.UserProgress = userProgressModel(sequelize, DataTypes);
 db.Certificate = certificateModel(sequelize, DataTypes);
+db.Meeting = meetingModel(sequelize, DataTypes);
 
 // --- Inisialisasi Model Penulisan Buku ---
 db.Book = bookModel(sequelize, DataTypes);
@@ -172,7 +174,7 @@ export const {
   Mentor, Level, User, Module, Lesson, Project, UserProgress, Certificate,
   Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea, 
   Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount,
-  ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource, NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure
+  ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource, NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting
 } = db;
 
 export default db;
