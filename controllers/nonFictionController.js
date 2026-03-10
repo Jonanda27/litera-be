@@ -1,4 +1,4 @@
-import { NonFictionResearch, Book } from "../models/index.js";
+import { NonFictionResearch, Book, NonFictionChapterContent } from "../models/index.js";
 
 // SAVE (CREATE or UPDATE)
 export const saveNonFictionResearch = async (req, res) => {
@@ -55,4 +55,35 @@ export const deleteNonFictionResearch = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Gagal menghapus data", error: error.message });
     }
+};
+
+export const saveChapterContentnonfiksi = async (req, res) => {
+  try {
+    const { bookId, chapterNumber, content, wordCount } = req.body;
+    // Cari draf lama, jika ada update, jika tidak ada buat baru
+    const [record, created] = await NonFictionChapterContent.findOrCreate({
+      where: { bookId, chapterNumber },
+      defaults: { content, wordCount }
+    });
+
+    if (!created) {
+      await record.update({ content, wordCount });
+    }
+    res.status(200).json({ success: true, message: "Konten bab berhasil disimpan" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Ambil Konten Bab Tertentu
+export const getChapterContentnonfiksi = async (req, res) => {
+  try {
+    const { bookId, chapterNumber } = req.query;
+    const data = await NonFictionChapterContent.findOne({
+      where: { bookId, chapterNumber }
+    });
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };

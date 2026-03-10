@@ -67,7 +67,9 @@ import {
 import { 
     saveNonFictionResearch, 
     getNonFictionResearch,
-    deleteNonFictionResearch 
+    deleteNonFictionResearch,
+    getChapterContentnonfiksi, 
+     saveChapterContentnonfiksi
 } from "../controllers/nonFictionController.js";
 
 import { 
@@ -108,7 +110,7 @@ import {
 
 import { addVisionItem, getVisionBoard, updateVisionItem, deleteVisionItem } from "../controllers/moodboardController.js";
 import { createOutline, getOutlinesByBook, updateOutline, deleteOutline } from "../controllers/outlineController.js";
-import { getAllDiscussions, createDiscussion } from "../controllers/discussionController.js";
+import { getAllDiscussions, createDiscussion, getMyJoinedDiscussions, joinDiscussion, getDiscussionMembers  } from "../controllers/discussionController.js";
 import { verifyToken } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -219,11 +221,16 @@ router.get("/chapter-structures/:bookId", verifyToken, getStructuresByBook);
 router.patch("/chapter-structures/:id", verifyToken, updateChapterStructure);
 router.delete("/chapter-structures/:id", verifyToken, deleteChapterStructure);
 
+router.post("/non-fiction/save-content", verifyToken, saveChapterContentnonfiksi);
+router.get("/non-fiction/get-content", verifyToken, getChapterContentnonfiksi);
 
 
 // Tambahkan route ini di bagian diskusi/chat
 router.get("/discussions/all", verifyToken, getAllDiscussions);
 router.post("/discussions/create", verifyToken, createDiscussion);
+router.post("/discussions/join", verifyToken, joinDiscussion);
+router.get("/discussions/my-joined", verifyToken, getMyJoinedDiscussions);
+router.get("/discussions/members/:discussionId", verifyToken, getDiscussionMembers);
 
 // --- 3. ROUTE DENGAN PARAMETER KHUSUS ---
 router.get("/pramenulis/:bookId", verifyToken, getPramenulis);

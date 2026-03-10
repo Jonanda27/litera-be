@@ -38,6 +38,8 @@ import discussionModel from "./discussion.js";
 import nonFictionCaseStudyModel from "./nonfictioncasestudy.js";
 import quoteCollectionModel from "./quotecollection.js";
 import nonFictionChapterStructureModel from "./nonfictionchapterstructure.js";
+import discussionMemberModel from "./discussionmember.js";
+import nonFictionChapterContentModel from "./nonfictionchaptercontent.js";
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -82,6 +84,8 @@ db.NonFictionSource = nonFictionSourceModel(sequelize, DataTypes);
 db.NonFictionCaseStudy = nonFictionCaseStudyModel(sequelize, DataTypes);
 db.QuoteCollection = quoteCollectionModel(sequelize, DataTypes);
 db.NonFictionChapterStructure = nonFictionChapterStructureModel(sequelize, DataTypes);
+db.DiscussionMember = discussionMemberModel(sequelize, DataTypes);
+db.NonFictionChapterContent = nonFictionChapterContentModel(sequelize, DataTypes);
 
 // --- Inisialisasi Model Revisi ---
 db.ChapterVersion = chapterVersionModel(sequelize, DataTypes);
@@ -155,14 +159,28 @@ db.QuoteCollection.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.Book.hasMany(db.NonFictionChapterStructure, { foreignKey: 'bookId', as: 'chapterStructures' });
 db.NonFictionChapterStructure.belongsTo(db.Book, { foreignKey: 'bookId' });
 
+db.User.belongsToMany(db.Discussion, { 
+  through: db.DiscussionMember, 
+  foreignKey: 'user_id', 
+  as: 'joinedDiscussions' 
+});
+db.Discussion.belongsToMany(db.User, { 
+  through: db.DiscussionMember, 
+  foreignKey: 'discussion_id', 
+  as: 'members' 
+});
+
 // 3. Jalankan asosiasi otomatis
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate && 
+      // Tambahkan model baru ke daftar pengecualian jika tidak ingin diproses otomatis di loop ini
+      // (karena sudah kita definisikan manual di atas)
       modelName !== 'ChatMessage' && 
       modelName !== 'User' && 
       modelName !== 'Book' && 
       modelName !== 'Discussion' &&
-      modelName !== 'NonFictionResearch') {
+      modelName !== 'NonFictionResearch' &&
+      modelName !== 'NonFictionChapterContent') { 
     db[modelName].associate(db);
   }
 });
@@ -174,7 +192,8 @@ export const {
   Mentor, Level, User, Module, Lesson, Project, UserProgress, Certificate,
   Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea, 
   Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount,
-  ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource, NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting
+  ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource, 
+  NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, DiscussionMember, NonFictionChapterContent
 } = db;
 
 export default db;
