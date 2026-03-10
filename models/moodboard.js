@@ -3,13 +3,8 @@ import { Model, DataTypes } from 'sequelize';
 
 export default (sequelize) => {
   class MoodBoard extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      // Relasi: MoodBoard dimiliki oleh sebuah Book 
+      // MoodBoard dimiliki oleh sebuah Book [cite: 589, 617]
       this.belongsTo(models.Book, {
         foreignKey: 'bookId',
         as: 'book'
@@ -18,25 +13,44 @@ export default (sequelize) => {
   }
 
   MoodBoard.init({
-    // Menghubungkan moodboard ke buku tertentu 
     bookId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Books',
+        model: 'Books', // [cite: 618]
         key: 'id'
       }
     },
+    // --- FIELD BARU ---
+    board_title: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    content_type: {
+      type: DataTypes.ENUM('Upload Gambar', 'Link URL', 'Warna / Palet'),
+      defaultValue: 'Upload Gambar'
+    },
     image_url: {
+      type: DataTypes.TEXT // [cite: 618]
+    },
+    visual_description: {
       type: DataTypes.TEXT
     },
-    category: {
+    connection_to: {
+      type: DataTypes.JSONB, // Menyimpan data JSON seperti { "karakter": "Alya", "lokasi": "Istana" }
+      defaultValue: {}
+    },
+    dominant_color: {
       type: DataTypes.STRING
+    },
+    // ------------------
+    category: {
+      type: DataTypes.STRING // [cite: 618]
     }
   }, {
     sequelize,
     modelName: 'MoodBoard',
-    tableName: 'MoodBoards', // Nama tabel sesuai migrasi [cite: 359]
+    tableName: 'MoodBoards', // [cite: 619]
   });
 
   return MoodBoard;

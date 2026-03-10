@@ -1,5 +1,4 @@
 'use strict';
-
 /** @type {import('sequelize-cli').Migration} */
 export default {
   async up(queryInterface, Sequelize) {
@@ -10,25 +9,50 @@ export default {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      // Menghubungkan riset ke buku tertentu
       bookId: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'Books', // Nama tabel induk
+          model: 'Books', // Mengacu pada tabel Books [cite: 493]
           key: 'id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
+      // --- FIELD DARI FORM SIMPAN RISET ---
       source_title: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING, // Judul Materi [cite: 493]
+        allowNull: false
+      },
+      source_type: {
+        type: Sequelize.ENUM('Artikel Online', 'Buku', 'Video YouTube', 'Podcast', 'Catatan Pribadi', 'Wawancara'),
+        defaultValue: 'Artikel Online'
       },
       link_url: {
-        type: Sequelize.TEXT
+        type: Sequelize.TEXT // Link/Referensi [cite: 494]
       },
+      file_path: {
+        type: Sequelize.STRING // Upload File (menyimpan path/url file)
+      },
+      topics: {
+        type: Sequelize.STRING // Topik/Tag (disimpan sebagai string dipisah koma)
+      },
+      important_quote: {
+        type: Sequelize.TEXT // Kutipan Penting
+      },
+      reference_point: {
+        type: Sequelize.STRING // Halaman/Waktu
+      },
+      credibility: {
+        type: Sequelize.INTEGER, // Kredibilitas (bintang 1-5)
+        defaultValue: 0
+      },
+      usage_plan: {
+        type: Sequelize.TEXT // Rencana Digunakan
+      },
+      // ------------------------------------
       notes: {
-        type: Sequelize.TEXT
+        type: Sequelize.TEXT // Catatan tambahan [cite: 494]
       },
       createdAt: {
         allowNull: false,
@@ -44,7 +68,6 @@ export default {
   },
 
   async down(queryInterface, Sequelize) {
-    // Pastikan nama tabel di sini sama dengan yang di atas (Researches)
-    await queryInterface.dropTable('Researches');
+    await queryInterface.dropTable('Researches'); 
   }
 };

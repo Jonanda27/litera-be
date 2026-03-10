@@ -3,13 +3,8 @@ import { Model, DataTypes } from 'sequelize';
 
 export default (sequelize) => {
   class Timeline extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      // Relasi: Timeline dimiliki oleh sebuah Book
+      // Relasi: Timeline dimiliki oleh sebuah Book [cite: 660]
       this.belongsTo(models.Book, {
         foreignKey: 'bookId',
         as: 'book'
@@ -18,7 +13,6 @@ export default (sequelize) => {
   }
 
   Timeline.init({
-    // Menghubungkan timeline ke buku tertentu sesuai migrasi 
     bookId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -27,19 +21,33 @@ export default (sequelize) => {
         key: 'id'
       }
     },
-    time_date: {
-      type: DataTypes.STRING // Format waktu/tanggal peristiwa 
+    // --- FIELD BARU ---
+    event_order: DataTypes.INTEGER,
+    event_name: { 
+      type: DataTypes.STRING,
+      allowNull: false 
     },
-    event: {
-      type: DataTypes.TEXT // Deskripsi peristiwa [cite: 384]
+    date_time: DataTypes.STRING,
+    time_clock: DataTypes.STRING,
+    duration: DataTypes.STRING,
+    description: DataTypes.TEXT,
+    involved_characters_list: {
+      type: DataTypes.JSONB,
+      defaultValue: []
     },
-    involved_characters: {
-      type: DataTypes.TEXT // Karakter yang terlibat [cite: 384]
+    location: DataTypes.STRING,
+    related_chapters: DataTypes.STRING,
+    consequence_of: DataTypes.TEXT,
+    leading_to: DataTypes.TEXT,
+    importance_level: {
+      type: DataTypes.ENUM('Krusial', 'Biasa', 'Detail'),
+      defaultValue: 'Biasa'
     }
+    // ------------------
   }, {
     sequelize,
     modelName: 'Timeline',
-    tableName: 'Timelines', // Menyesuaikan dengan nama tabel di database [cite: 382]
+    tableName: 'Timelines', // Pastikan sesuai dengan migrasi [cite: 662]
   });
 
   return Timeline;

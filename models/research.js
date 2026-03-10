@@ -3,13 +3,8 @@ import { Model, DataTypes } from 'sequelize';
 
 export default (sequelize) => {
   class Research extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      // Relasi: Research dimiliki oleh sebuah Book
+      // Relasi: Research dimiliki oleh sebuah Book [cite: 644]
       this.belongsTo(models.Book, {
         foreignKey: 'bookId',
         as: 'book'
@@ -18,7 +13,6 @@ export default (sequelize) => {
   }
 
   Research.init({
-    // Menghubungkan riset ke buku tertentu sesuai migrasi
     bookId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -27,19 +21,49 @@ export default (sequelize) => {
         key: 'id'
       }
     },
+    // --- FIELD BARU ---
     source_title: {
-      type: DataTypes.STRING
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    source_type: {
+      type: DataTypes.ENUM('Artikel Online', 'Buku', 'Video YouTube', 'Podcast', 'Catatan Pribadi', 'Wawancara'),
+      defaultValue: 'Artikel Online'
     },
     link_url: {
       type: DataTypes.TEXT
     },
+    file_path: {
+      type: DataTypes.STRING
+    },
+    topics: {
+      type: DataTypes.STRING
+    },
+    important_quote: {
+      type: DataTypes.TEXT
+    },
+    reference_point: {
+      type: DataTypes.STRING
+    },
+    credibility: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      validate: {
+        min: 0,
+        max: 5
+      }
+    },
+    usage_plan: {
+      type: DataTypes.TEXT
+    },
+    // ------------------
     notes: {
       type: DataTypes.TEXT
     }
   }, {
     sequelize,
     modelName: 'Research',
-    tableName: 'Researches', // Memastikan sinkron dengan nama tabel di database
+    tableName: 'Researches', // Sinkron dengan nama tabel di database [cite: 646]
   });
 
   return Research;

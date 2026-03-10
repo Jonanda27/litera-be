@@ -3,7 +3,7 @@ from pathlib import Path
 
 # --- KONFIGURASI ---
 TARGET_DIRECTORY = "C:\\Users\ASUS\\Documents\\gthub\\litera-be"
-OUTPUT_FILE = "C:\\Users\\ASUS\\Documents\\gthub\\litera-be\\literabe.txt"
+OUTPUT_FILE = "C:\\Users\\ASUS\\Documents\\gthub\\litera-be\\literabe2.txt"
 
 # Tambahkan pengecualian direktori lintas ekosistem
 EXCLUDE_DIRS = {

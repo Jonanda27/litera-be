@@ -3,7 +3,7 @@ import { Model, DataTypes } from 'sequelize';
 export default (sequelize) => {
   class Chapter extends Model {
     static associate(models) {
-      // Menghubungkan chapter ke buku
+      // Menghubungkan chapter ke buku 
       Chapter.belongsTo(models.Book, { foreignKey: 'bookId' });
     }
   }
@@ -11,6 +11,9 @@ export default (sequelize) => {
   Chapter.init({
     title: DataTypes.STRING,
     content: DataTypes.TEXT,
+    // --- TAMBAHKAN ATRIBUT PAGE DI SINI ---
+    page: DataTypes.INTEGER,
+    // --------------------------------------
     word_count: DataTypes.INTEGER,
     daily_target: DataTypes.INTEGER,
     is_safe: DataTypes.BOOLEAN,

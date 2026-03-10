@@ -10,7 +10,6 @@ export default {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      // Relasi ke tabel Books
       bookId: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -26,20 +25,26 @@ export default {
         allowNull: false
       },
       content: {
-        type: Sequelize.TEXT, // Menyimpan konten dari Editor Teks Utama
+        type: Sequelize.TEXT,
         defaultValue: ''
       },
+      // --- TAMBAHKAN KOLOM PAGE DI SINI ---
+      page: {
+        type: Sequelize.INTEGER,
+        allowNull: true // Sesuaikan menjadi false jika wajib diisi
+      },
+      // ------------------------------------
       word_count: {
         type: Sequelize.INTEGER,
         defaultValue: 0
       },
       daily_target: {
         type: Sequelize.INTEGER,
-        defaultValue: 1000 // Sesuai contoh di gambar (0 / 1000)
+        defaultValue: 1000
       },
       is_safe: {
         type: Sequelize.BOOLEAN,
-        defaultValue: true // Indikator status "SAFE" di gambar
+        defaultValue: true
       },
       order_index: {
         type: Sequelize.INTEGER,

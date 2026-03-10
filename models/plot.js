@@ -1,48 +1,33 @@
+// models/plot.js
 'use strict';
-import { Model, DataTypes } from 'sequelize';
+import { Model } from 'sequelize';
 
-export default (sequelize) => {
+export default (sequelize, DataTypes) => {
   class Plot extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      // Menghubungkan Plot ke sebuah Book 
-      this.belongsTo(models.Book, { 
-        foreignKey: 'bookId', 
-        as: 'book' 
-      });
+      this.belongsTo(models.Book, { foreignKey: 'bookId' });
     }
   }
-
   Plot.init({
-    act: {
-      type: DataTypes.STRING, // Misal: "Babak I" [cite: 389]
-    },
-    tag: {
-      type: DataTypes.STRING, // Misal: "Aksi", "Konflik" [cite: 389]
-    },
-    title: {
-      type: DataTypes.STRING
-    },
-    description: {
-      type: DataTypes.TEXT
-    },
-    order_index: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0
-    },
-    bookId: {
-      type: DataTypes.INTEGER,
-      allowNull: false
-    }
+    bookId: DataTypes.INTEGER,
+    title: DataTypes.STRING,
+    act: DataTypes.ENUM('Babak 1: Pengenalan', 'Babak 2: Konflik Meningkat', 'Babak 3: Klimaks', 'Babak 4: Resolusi'),
+    chapterNum: DataTypes.STRING,
+    sequenceNum: DataTypes.STRING,
+    location: DataTypes.STRING,
+    time: DataTypes.STRING,
+    characters: DataTypes.TEXT,
+    summary: DataTypes.TEXT,
+    conflict: DataTypes.TEXT,
+    sceneFunction: DataTypes.STRING,
+    prevScene: DataTypes.STRING,
+    nextScene: DataTypes.STRING,
+    status: DataTypes.ENUM('Ide', 'Draft', 'Selesai'),
+    labelColor: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'Plot',
-    tableName: 'Plots', // Memastikan sinkron dengan nama tabel di migrasi 
+    tableName: 'Plots'
   });
-
   return Plot;
-}
+};

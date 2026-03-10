@@ -1,48 +1,46 @@
 'use strict';
-import { Model, DataTypes } from 'sequelize';
+import { Model } from 'sequelize';
 
-export default (sequelize) => {
+export default (sequelize, DataTypes) => {
   class QuickIdea extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      // Relasi: QuickIdea dimiliki oleh sebuah Book [cite: 354, 452]
-      this.belongsTo(models.Book, {
-        foreignKey: 'bookId',
-        as: 'book'
-      });
+      // Relasi: Ide cepat dimiliki oleh sebuah Buku [cite: 672]
+      this.belongsTo(models.Book, { foreignKey: 'bookId' });
     }
   }
 
   QuickIdea.init({
-    // Menghubungkan Ide ke Buku tertentu 
     bookId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Books',
-        key: 'id'
-      }
+      allowNull: false
     },
     title: {
-      type: DataTypes.STRING
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    date: {
+      type: DataTypes.DATE, // Menyimpan gabungan Tanggal dan Waktu [cite: 230, 310]
+    },
+    category_tag: {
+      type: DataTypes.STRING, // Mapping dari 'category' di frontend [cite: 231]
     },
     description: {
       type: DataTypes.TEXT
     },
-    category_tag: {
+    mood: {
       type: DataTypes.STRING
     },
-    date: {
-      type: DataTypes.DATE
+    reference: {
+      type: DataTypes.STRING
+    },
+    priority: {
+      type: DataTypes.ENUM('Segera', 'Nanti', 'Arsip'),
+      defaultValue: 'Segera'
     }
   }, {
     sequelize,
     modelName: 'QuickIdea',
-    tableName: 'QuickIdeas', // Sesuai dengan nama tabel di migrasi [cite: 354]
+    tableName: 'QuickIdeas', // Pastikan nama tabel jamak dan sinkron dengan migrasi
   });
 
   return QuickIdea;

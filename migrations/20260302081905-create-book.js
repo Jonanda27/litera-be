@@ -11,14 +11,20 @@ export default {
       },
       title: {
         type: Sequelize.STRING,
-        allowNull: false // Judul sebaiknya tidak boleh kosong
+        allowNull: false 
       },
-      // Tambahkan userId di bawah ini
+      // --- TAMBAHKAN INI ---
+      category: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        defaultValue: 'Fiksi' // Sebagai fallback
+      },
+      // ---------------------
       userId: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'Users', // Nama tabel yang direferensikan (biasanya jamak)
+          model: 'Users', 
           key: 'id'
         },
         onUpdate: 'CASCADE',
