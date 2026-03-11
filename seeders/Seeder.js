@@ -82,7 +82,7 @@ export default {
     // 5. Seed Users
     const targetEmail = 'test@geocitra.com';
     await queryInterface.bulkInsert('Users', [{
-      nama: 'Jonanda Pantas',
+      nama: 'Geocitra',
       email: targetEmail,
       password: hashedPassword,
       mentor_id: mentorId,

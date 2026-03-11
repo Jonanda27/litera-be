@@ -9,7 +9,7 @@ export default (sequelize) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      this.belongsTo(models.User, { foreignKey: 'moderator_id', as: 'moderator' });
+      this.hasOne(models.Discussion, { foreignKey: 'meeting_id' });
     }
   }
   Meeting.init({
@@ -18,7 +18,6 @@ export default (sequelize) => {
       type: DataTypes.STRING,
       unique: true
     },
-    moderator_id: DataTypes.INTEGER,
     description: DataTypes.TEXT,
     status: DataTypes.STRING
   }, {

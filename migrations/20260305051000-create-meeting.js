@@ -17,14 +17,6 @@ export default {
         allowNull: false,
         unique: true
       },
-      moderator_id: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Users',
-          key: 'id'
-        }
-      },
       description: {
         type: Sequelize.TEXT
       },

@@ -7,6 +7,7 @@ export default (sequelize, DataTypes) => {
     static associate(models) {
       // Relasi: Diskusi dimiliki oleh satu User (Pemilik)
       this.belongsTo(models.User, { foreignKey: 'owner_id', as: 'owner' });
+      this.belongsTo(models.Meeting, { foreignKey: 'meeting_id', as: 'active_meeting' })
       // Relasi hasMany ke ChatMessage tetap ada di models/index.js [cite: 1844]
     }
   }
@@ -19,6 +20,10 @@ export default (sequelize, DataTypes) => {
       type: DataTypes.TEXT
     },
     owner_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    meeting_id: {
       type: DataTypes.INTEGER,
       allowNull: true
     }
