@@ -21,72 +21,66 @@ export default {
     const [mentors] = await queryInterface.sequelize.query('SELECT id FROM "Mentors" LIMIT 1;');
     const mentorId = mentors[0].id;
 
-    // 2. Seed Levels
-    await queryInterface.bulkInsert('Levels', [{
-      nama_level: 'Level 1: Dasar-Dasar Literasi',
-      deskripsi: 'Tahap awal pengembangan kemampuan membaca dan menulis sehat.',
-      createdAt: now,
-      updatedAt: now
-    }], {});
+    // 2. Seed Levels (3 Level)
+    await queryInterface.bulkInsert('Levels', [
+      { nama_level: 'Level 1: Dasar-Dasar Literasi', deskripsi: 'Tahap awal pengembangan kemampuan membaca dan menulis sehat.', createdAt: now, updatedAt: now },
+      { nama_level: 'Level 2: Pengembangan Analisis', deskripsi: 'Mendalami teknik analisis teks dan struktur argumen.', createdAt: now, updatedAt: now },
+      { nama_level: 'Level 3: Penulisan Kreatif & Publikasi', deskripsi: 'Persiapan karya untuk dipublikasikan secara luas.', createdAt: now, updatedAt: now }
+    ], {});
 
-    const [levels] = await queryInterface.sequelize.query('SELECT id FROM "Levels" LIMIT 1;');
-    const levelId = levels[0].id;
+    const [levelRows] = await queryInterface.sequelize.query('SELECT id FROM "Levels" ORDER BY id ASC;');
+    const l1Id = levelRows[0].id;
+    const l2Id = levelRows[1].id;
+    const l3Id = levelRows[2].id;
 
-    // 3. Seed Modules
-    await queryInterface.bulkInsert('Modules', [
-      {
-        level_id: levelId,
-        nama_modul: 'Level-1/Modul-1',
-        createdAt: now,
-        updatedAt: now
-      },
-      {
-        level_id: levelId,
-        nama_modul: 'Level-1/Modul-2',
-        createdAt: now,
-        updatedAt: now
+    // 3. Seed Modules (Masing-masing level punya 5 modul)
+    const modulesData = [];
+    for (let i = 1; i <= 5; i++) modulesData.push({ level_id: l1Id, nama_modul: `Level-1/Modul-${i}`, createdAt: now, updatedAt: now });
+    for (let i = 1; i <= 5; i++) modulesData.push({ level_id: l2Id, nama_modul: `Level-2/Modul-${i}`, createdAt: now, updatedAt: now });
+    for (let i = 1; i <= 5; i++) modulesData.push({ level_id: l3Id, nama_modul: `Level-3/Modul-${i}`, createdAt: now, updatedAt: now });
+
+    await queryInterface.bulkInsert('Modules', modulesData, {});
+
+    // Ambil ID Modul untuk mapping Lessons
+    const [moduleRows] = await queryInterface.sequelize.query('SELECT id, nama_modul FROM "Modules" ORDER BY id ASC;');
+    const getModId = (name) => moduleRows.find(m => m.nama_modul === name).id;
+
+    // Helper untuk membuat 11 lessons per modul
+    const generate11Lessons = (modId, prefix) => {
+      const lessons = [];
+      for (let i = 1; i <= 10; i++) {
+        lessons.push({
+          module_id: modId,
+          tipe_konten: i % 2 === 0 ? 'video' : 'bacaan',
+          judul_materi: `${prefix} - Materi ${i}`,
+          url_konten: i % 2 === 0 ? `https://youtube.com/watch?v=${modId}-${i}` : `https://example.com/pdf-${modId}-${i}`,
+          createdAt: now,
+          updatedAt: now
+        });
       }
-    ], {});
+      // Lesson ke-11: Evaluasi
+      lessons.push({
+        module_id: modId,
+        tipe_konten: 'bacaan',
+        judul_materi: `Evaluasi ${prefix}`,
+        url_konten: `https://example.com/evaluasi-${modId}`,
+        createdAt: now,
+        updatedAt: now
+      });
+      return lessons;
+    };
 
-    // Ambil ID untuk Modul 1 dan Modul 2
-    const [mod1] = await queryInterface.sequelize.query('SELECT id FROM "Modules" WHERE "nama_modul" = \'Level-1/Modul-1\' LIMIT 1;');
-    const [mod2] = await queryInterface.sequelize.query('SELECT id FROM "Modules" WHERE "nama_modul" = \'Level-1/Modul-2\' LIMIT 1;');
-    
-    const moduleId1 = mod1[0].id;
-    const moduleId2 = mod2[0].id;
+    // 4. Seed Lessons (Total 33 Lessons: Modul 1, 2, dan 3 masing-masing 11 materi)
+    const allLessons = [
+      ...generate11Lessons(getModId('Level-1/Modul-1'), 'Modul 1'),
+      ...generate11Lessons(getModId('Level-1/Modul-2'), 'Modul 2'),
+      ...generate11Lessons(getModId('Level-1/Modul-3'), 'Modul 3')
+    ];
 
-    // 4. Seed Lessons untuk Modul 1 (11 Materi)
-    await queryInterface.bulkInsert('Lessons', [
-      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 1', url_konten: 'https://example.com/pdf1', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 1', url_konten: 'https://youtube.com/watch?v=1', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 2', url_konten: 'https://example.com/pdf2', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 2', url_konten: 'https://youtube.com/watch?v=2', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 3', url_konten: 'https://example.com/pdf3', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 3', url_konten: 'https://youtube.com/watch?v=3', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 4', url_konten: 'https://example.com/pdf4', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 4', url_konten: 'https://youtube.com/watch?v=4', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Membaca Sehat 5', url_konten: 'https://example.com/pdf5', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'video', judul_materi: 'Menulis Sehat 5', url_konten: 'https://youtube.com/watch?v=5', createdAt: now, updatedAt: now },
-      { module_id: moduleId1, tipe_konten: 'bacaan', judul_materi: 'Evaluasi Membaca 1', url_konten: 'https://example.com/pdf6', createdAt: now, updatedAt: now }
-    ], {});
+    await queryInterface.bulkInsert('Lessons', allLessons, {});
 
-    // 5. Seed Lessons untuk Modul 2 (11 Materi)
-    await queryInterface.bulkInsert('Lessons', [
-      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 1', url_konten: 'https://example.com/mod2-pdf1', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 1', url_konten: 'https://youtube.com/watch?v=m2-1', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 2', url_konten: 'https://example.com/mod2-pdf2', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 2', url_konten: 'https://youtube.com/watch?v=m2-2', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 3', url_konten: 'https://example.com/mod2-pdf3', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 3', url_konten: 'https://youtube.com/watch?v=m2-3', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 4', url_konten: 'https://example.com/mod2-pdf4', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 4', url_konten: 'https://youtube.com/watch?v=m2-4', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Analisis Kritis 5', url_konten: 'https://example.com/mod2-pdf5', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'video', judul_materi: 'Struktur Opini 5', url_konten: 'https://youtube.com/watch?v=m2-5', createdAt: now, updatedAt: now },
-      { module_id: moduleId2, tipe_konten: 'bacaan', judul_materi: 'Evaluasi Modul 2', url_konten: 'https://example.com/mod2-pdf6', createdAt: now, updatedAt: now }
-    ], {});
-
-    // 6. Seed Users
-    const targetEmail = 'test2@geocitra.com'; // Gunakan variabel agar tidak salah ketik
+    // 5. Seed Users
+    const targetEmail = 'test@geocitra.com';
     await queryInterface.bulkInsert('Users', [{
       nama: 'Jonanda Pantas',
       email: targetEmail,
@@ -98,15 +92,14 @@ export default {
       updatedAt: now
     }], {});
 
-    // --- PERBAIKAN DI SINI: Gunakan targetEmail yang sama ---
     const [users] = await queryInterface.sequelize.query(`SELECT id FROM "Users" WHERE "email" = '${targetEmail}' LIMIT 1;`);
     const userId = users[0].id;
 
-    // 7. Seed Certificates
+    // 6. Seed Certificates
     await queryInterface.bulkInsert('Certificates', [
       {
         user_id: userId,
-        module_id: moduleId1,
+        module_id: getModId('Level-1/Modul-1'),
         nomor_sertifikat: `CERT/L1M1/${userId}/${Date.now()}`,
         tanggal_terbit: now,
         url_file: 'https://storage.com/sertifikat/l1-m1.pdf',
@@ -115,7 +108,7 @@ export default {
       },
       {
         user_id: userId,
-        module_id: moduleId2,
+        module_id: getModId('Level-1/Modul-2'),
         nomor_sertifikat: `CERT/L1M2/${userId}/${Date.now() + 1}`,
         tanggal_terbit: now,
         url_file: 'https://storage.com/sertifikat/l1-m2.pdf',
