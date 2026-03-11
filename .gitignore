@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment variables (Sangat Penting!)
+.env
+.env.local
+
+# Build folders
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
