@@ -85,44 +85,41 @@ export const createBook = async (req, res) => {
     }
 };
 
-// 3. SAVE CHAPTER CONTENT (PER HALAMAN)
 export const saveChapterContent = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-        const { bookId, title, pages, dailyTarget } = req.body;
+        // Tambahkan outlineId di body
+        const { bookId, outlineId, pages, dailyTarget } = req.body;
 
-        if (!bookId || !pages || !Array.isArray(pages)) {
+        if (!bookId || !outlineId || !pages || !Array.isArray(pages)) {
             return res.status(400).json({ message: "Data tidak lengkap" });
         }
 
         let totalWordCount = 0;
         const incomingPageNumbers = [];
 
-        // 1. Loop melalui data halaman yang dikirim dari Frontend
         for (const p of pages) {
             const words = p.content ? p.content.trim().split(/\s+/).filter(w => w !== "").length : 0;
             totalWordCount += words;
-            incomingPageNumbers.push(p.page); // Simpan nomor halaman untuk pengecekan nanti
+            incomingPageNumbers.push(p.page);
 
-            // Cari apakah halaman ini (bookId & nomor page) sudah ada di database
+            // Cari berdasarkan bookId, outlineId, DAN nomor halaman
             const existingChapter = await Chapter.findOne({
-                where: { bookId, page: p.page },
+                where: { bookId, outlineId, page: p.page },
                 transaction: t
             });
 
             if (existingChapter) {
-                // JIKA SUDAH ADA: Lakukan Update (ID tetap dipertahankan)
                 await existingChapter.update({
-                    title: title || "Bab Utama",
                     content: p.content || "",
                     word_count: words,
                     daily_target: dailyTarget || 1000
                 }, { transaction: t });
             } else {
-                // JIKA BELUM ADA: Buat baru (akan mendapat ID baru)
                 await Chapter.create({
                     bookId,
-                    title: title || "Bab Utama",
+                    outlineId, // Simpan referensi ke bab outline
+                    title: "Konten Bab", 
                     content: p.content || "",
                     page: p.page,
                     word_count: words,
@@ -131,68 +128,53 @@ export const saveChapterContent = async (req, res) => {
             }
         }
 
-        // 2. HAPUS HALAMAN YANG DIHAPUS USER (Opsional tapi penting)
-        // Jika user menghapus halaman di frontend, kita hapus juga di database
-        if (incomingPageNumbers.length > 0) {
-            await Chapter.destroy({
-                where: {
-                    bookId,
-                    page: { [Op.notIn]: incomingPageNumbers } // Hapus page yang tidak ada di payload frontend
-                },
-                transaction: t
-            });
-        } else {
-             // Jika frontend mengirim array kosong, hapus semua buku
-             await Chapter.destroy({ where: { bookId }, transaction: t });
-        }
+        // Hapus halaman yang tidak ada lagi di frontend untuk bab ini
+        await Chapter.destroy({
+            where: {
+                bookId,
+                outlineId,
+                page: { [Op.notIn]: incomingPageNumbers }
+            },
+            transaction: t
+        });
 
-        // 3. Update target kata harian
+        // Update total kata harian (Opsional: global per buku)
         const today = new Date().toISOString().split('T')[0];
         const [record, created] = await DailyWordCount.findOrCreate({
             where: { bookId, date: today },
             defaults: { word_count: totalWordCount },
             transaction: t
         });
-
-        if (!created) {
-            await record.update({ word_count: totalWordCount }, { transaction: t });
-        }
+        if (!created) await record.update({ word_count: totalWordCount }, { transaction: t });
 
         await t.commit();
-        return res.status(200).json({ message: "Seluruh halaman berhasil disimpan!" });
+        return res.status(200).json({ message: "Progres bab berhasil disimpan!" });
     } catch (error) {
         await t.rollback();
-        res.status(500).json({ message: "Gagal menyimpan data per halaman", error: error.message });
+        res.status(500).json({ message: "Gagal simpan", error: error.message });
     }
 };
 
-// 4. GET CHAPTER CONTENT (MENGAMBIL ARRAY HALAMAN)
 export const getChapterContent = async (req, res) => {
     try {
-        const { bookId } = req.query;
-        if (!bookId) return res.status(400).json({ message: "Book ID wajib ada" });
+        const { bookId, outlineId } = req.query; // Ambil konten berdasarkan outlineId
+        if (!bookId || !outlineId) return res.status(400).json({ message: "ID wajib ada" });
 
         const chapters = await Chapter.findAll({
-            where: { bookId },
+            where: { bookId, outlineId },
             order: [['page', 'ASC']]
         });
 
-        if (!chapters || chapters.length === 0) {
-            return res.status(200).json({ message: "Belum ada draf", data: [] });
-        }
-
         return res.status(200).json({
-            message: "Data berhasil diambil",
             data: chapters.map(c => ({
                 id: c.id,
                 page: c.page,
                 content: c.content,
-                title: c.title,
                 wordCount: c.word_count
             }))
         });
     } catch (error) {
-        res.status(500).json({ message: "Gagal mengambil data", error: error.message });
+        res.status(500).json({ message: "Error", error: error.message });
     }
 };
 

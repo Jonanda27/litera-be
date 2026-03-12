@@ -5,6 +5,7 @@ export default (sequelize) => {
   class Outline extends Model {
     static associate(models) {
       Outline.belongsTo(models.Book, { foreignKey: 'bookId' });
+  Outline.hasMany(models.Chapter, { foreignKey: 'outlineId' }); // TAMBAHKAN INI
     }
   }
   Outline.init({

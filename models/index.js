@@ -40,6 +40,7 @@ import quoteCollectionModel from "./quotecollection.js";
 import nonFictionChapterStructureModel from "./nonfictionchapterstructure.js";
 import discussionMemberModel from "./discussionmember.js";
 import nonFictionChapterContentModel from "./nonfictionchaptercontent.js";
+import chapterContentSummaryModel from "./chaptercontentsummary.js";
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -86,6 +87,7 @@ db.QuoteCollection = quoteCollectionModel(sequelize, DataTypes);
 db.NonFictionChapterStructure = nonFictionChapterStructureModel(sequelize, DataTypes);
 db.DiscussionMember = discussionMemberModel(sequelize, DataTypes);
 db.NonFictionChapterContent = nonFictionChapterContentModel(sequelize, DataTypes);
+db.ChapterContentSummary = chapterContentSummaryModel(sequelize, DataTypes);
 
 // --- Inisialisasi Model Revisi ---
 db.ChapterVersion = chapterVersionModel(sequelize, DataTypes);
@@ -159,6 +161,9 @@ db.QuoteCollection.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.Book.hasMany(db.NonFictionChapterStructure, { foreignKey: 'bookId', as: 'chapterStructures' });
 db.NonFictionChapterStructure.belongsTo(db.Book, { foreignKey: 'bookId' });
 
+db.Book.hasMany(db.ChapterContentSummary, { foreignKey: 'bookId' }); 
+db.ChapterContentSummary.belongsTo(db.Book, { foreignKey: 'bookId' });
+
 db.User.belongsToMany(db.Discussion, { 
   through: db.DiscussionMember, 
   foreignKey: 'user_id', 
@@ -193,7 +198,7 @@ export const {
   Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea, 
   Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount,
   ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource, 
-  NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, DiscussionMember, NonFictionChapterContent
+  NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, DiscussionMember, NonFictionChapterContent, ChapterContentSummary
 } = db;
 
 export default db;
