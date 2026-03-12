@@ -1,21 +1,21 @@
 {
   "development": {
-    "username": "edaily_user",
-    "password": "Persibnuaing1933!",
+    "username": "postgres",
+    "password": "naufal",
     "database": "litera_db",
-    "host": "edaily-db", 
+    "host": "127.0.0.1",
     "dialect": "postgres"
   },
   "test": {
     "username": "postgres",
-    "password": "admin",
+    "password": "naufal",
     "database": "litera_db_test",
     "host": "127.0.0.1",
     "dialect": "postgres"
   },
   "production": {
     "username": "postgres",
-    "password": "admin",
+    "password": "naufal",
     "database": "litera_db",
     "host": "127.0.0.1",
     "dialect": "postgres"
