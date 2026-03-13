@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 4000;
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: { origin: PORT , methods: ["GET", "POST"], credentials: true }
+  cors: { origin: "http://localhost:3000", methods: ["GET", "POST"], credentials: true }
 });
 
 const onlineUsers = new Map();
@@ -33,7 +33,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 2. EVENT SEND MESSAGE (HANYA SATU BLOK AGAR TIDAK DUPLIKAT)
+  // 2. EVENT SEND MESSAGE
   socket.on("send_message", async (data) => {
     try {
       // Simpan ke database
@@ -81,7 +81,7 @@ io.on("connection", (socket) => {
       .filter(u => u.discussionId === discussionId)
       // Deduplikasi user ID yang sama (jika satu user buka banyak tab)
       .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-    
+
     io.to(discussionId).emit("online_users_list", usersInRoom);
   };
 });
