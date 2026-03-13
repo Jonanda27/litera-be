@@ -44,11 +44,11 @@ export const getWeeklyStats = async (req, res) => {
             where: { bookId }
         });
 
-        res.status(200).json({ 
+        res.status(200).json({
             data: wordStats,
             pageData: dailyPageStats,
             basePageCount: basePageCount, // Kirimkan jumlah awal
-            totalPages: totalPages 
+            totalPages: totalPages
         });
     } catch (error) {
         res.status(500).json({ message: "Gagal mengambil statistik", error: error.message });
@@ -60,22 +60,22 @@ export const createBook = async (req, res) => {
     try {
         const userId = req.user.id;
         // Tangkap category dari body
-        const { title, category } = req.body; 
+        const { title, category } = req.body;
 
         if (!title) return res.status(400).json({ message: "Judul buku wajib diisi" });
         if (!category) return res.status(400).json({ message: "Kategori buku wajib dipilih" });
 
         // Simpan ke database
-        const newBook = await Book.create({ 
-            title, 
-            category, 
-            userId 
+        const newBook = await Book.create({
+            title,
+            category,
+            userId
         });
 
         res.status(201).json({
             message: "Buku berhasil dibuat",
-            data: { 
-                bookId: newBook.id, 
+            data: {
+                bookId: newBook.id,
                 title: newBook.title,
                 category: newBook.category // Kembalikan data category di response
             }
@@ -119,7 +119,7 @@ export const saveChapterContent = async (req, res) => {
                 await Chapter.create({
                     bookId,
                     outlineId, // Simpan referensi ke bab outline
-                    title: "Konten Bab", 
+                    title: "Konten Bab",
                     content: p.content || "",
                     page: p.page,
                     word_count: words,
@@ -138,14 +138,19 @@ export const saveChapterContent = async (req, res) => {
             transaction: t
         });
 
+        const totalWordsInBook = await Chapter.sum('word_count', {
+            where: { bookId },
+            transaction: t
+        }) || 0;
+
         // Update total kata harian (Opsional: global per buku)
         const today = new Date().toISOString().split('T')[0];
         const [record, created] = await DailyWordCount.findOrCreate({
             where: { bookId, date: today },
-            defaults: { word_count: totalWordCount },
+            defaults: { word_count: totalWordsInBook },
             transaction: t
         });
-        if (!created) await record.update({ word_count: totalWordCount }, { transaction: t });
+        if (!created) await record.update({ word_count: totalWordsInBook }, { transaction: t });
 
         await t.commit();
         return res.status(200).json({ message: "Progres bab berhasil disimpan!" });
@@ -340,7 +345,7 @@ export const getPramenulis = async (req, res) => {
         });
 
         if (!book) return res.status(404).json({ message: "Proyek tidak ditemukan" });
-        
+
         const plain = book.toJSON();
 
         res.status(200).json({
@@ -358,11 +363,11 @@ export const getPramenulis = async (req, res) => {
                 researches: plain.Researches || plain.Researchs || plain.Research || [],
                 outlines: (plain.Outlines || plain.Outline || []).map(o => {
                     const parts = o.summary ? o.summary.split('\n') : ['', ''];
-                    return { 
-                        id: o.id, 
-                        title: o.title, 
-                        sub1: parts[0] || '', 
-                        sub2: parts[1] || '' 
+                    return {
+                        id: o.id,
+                        title: o.title,
+                        sub1: parts[0] || '',
+                        sub2: parts[1] || ''
                     };
                 })
             }
@@ -375,15 +380,15 @@ export const getPramenulis = async (req, res) => {
 
 export const getAllBooks = async (req, res) => {
     try {
-        const userId = req.user.id; 
-        const books = await Book.findAll({ 
-            where: { userId }, 
-            order: [['updatedAt', 'DESC']], 
+        const userId = req.user.id;
+        const books = await Book.findAll({
+            where: { userId },
+            order: [['updatedAt', 'DESC']],
             include: [{ model: QuickIdea, required: false }] // Ini yang memicu error jika DB tidak sinkron [cite: 180]
         });
-        res.status(200).json({ data: books }); 
+        res.status(200).json({ data: books });
     } catch (error) {
-        res.status(500).json({ message: "Gagal ambil daftar buku", error: error.message }); 
+        res.status(500).json({ message: "Gagal ambil daftar buku", error: error.message });
     }
 };
 
@@ -462,35 +467,35 @@ export const getBookDetail = async (req, res) => {
 };
 
 export const getChatHistory = async (req, res) => {
-  try {
-    const { bookId } = req.params;
-    const history = await ChatMessage.findAll({
-      where: { bookId },
-      include: [{ model: User, as: 'sender', attributes: ['nama'] }],
-      order: [['createdAt', 'ASC']],
-      limit: 50
-    });
-    res.status(200).json(history);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    try {
+        const { bookId } = req.params;
+        const history = await ChatMessage.findAll({
+            where: { bookId },
+            include: [{ model: User, as: 'sender', attributes: ['nama'] }],
+            order: [['createdAt', 'ASC']],
+            limit: 50
+        });
+        res.status(200).json(history);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };
 
 export const getDiscussionHistory = async (req, res) => {
-  try {
-    const { discussionId } = req.params;
-    
-    // Contoh di controller riwayat chat
-const messages = await ChatMessage.findAll({
-  where: { discussionId },
-  include: [{ model: User, as: 'sender', attributes: ['id', 'nama'] }], // Ambil ID dan Nama
-  order: [['createdAt', 'ASC']]
-});
+    try {
+        const { discussionId } = req.params;
 
-    res.status(200).json({ success: true, data: messages });
-  } catch (error) {
-    res.status(500).json({ message: "Gagal memuat riwayat", error: error.message });
-  }
+        // Contoh di controller riwayat chat
+        const messages = await ChatMessage.findAll({
+            where: { discussionId },
+            include: [{ model: User, as: 'sender', attributes: ['id', 'nama'] }], // Ambil ID dan Nama
+            order: [['createdAt', 'ASC']]
+        });
+
+        res.status(200).json({ success: true, data: messages });
+    } catch (error) {
+        res.status(500).json({ message: "Gagal memuat riwayat", error: error.message });
+    }
 };
 
 // Ambil satu buku berdasarkan ID
@@ -501,7 +506,7 @@ export const getBookById = async (req, res) => {
         const book = await Book.findByPk(bookId, {
             // Hapus 'as: user' jika tidak yakin dengan alias di model
             include: [
-                { model: User, attributes: ['id', 'nama'] } 
+                { model: User, attributes: ['id', 'nama'] }
             ]
         });
 
@@ -515,9 +520,9 @@ export const getBookById = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getBookById:", error); // Tambahkan ini untuk debug di terminal
-        res.status(500).json({ 
-            message: "Gagal mengambil data buku", 
-            error: error.message 
+        res.status(500).json({
+            message: "Gagal mengambil data buku",
+            error: error.message
         });
     }
 };
