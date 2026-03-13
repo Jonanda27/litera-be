@@ -4,9 +4,11 @@ import authRoutes from "./routes/authRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js";
 import meetingRoutes from "./routes/meetingRoutes.js";
 import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
-// [BARU] Import router manajemen akun
 import userRoutes from "./routes/userRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
+
+// [BARU] Import router log aktivitas
+import activityLogRoutes from "./routes/activityLogRoutes.js";
 
 const app = express();
 
@@ -25,9 +27,12 @@ app.use("/api/meetings", meetingRoutes);
 // Daftarkan route khusus admin dashboard
 app.use("/api/v1/admin/dashboard", adminDashboardRoutes);
 
-// [BARU] Daftarkan route manajemen entitas (akan diproteksi di level router masing-masing)
+// Daftarkan route manajemen entitas (akan diproteksi di level router masing-masing)
 app.use("/api/users", userRoutes);
 app.use("/api/mentors", mentorRoutes);
+
+// [BARU] Daftarkan route khusus untuk log aktivitas
+app.use("/api/activity-logs", activityLogRoutes);
 
 app.get("/", (req, res) => res.send("Backend aktif ✅"));
 

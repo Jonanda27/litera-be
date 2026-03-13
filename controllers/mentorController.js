@@ -1,4 +1,5 @@
 import MentorService from '../services/mentorService.js';
+import ActivityLoggerService from '../services/activityLoggerService.js';
 
 class MentorController {
     /**
@@ -37,7 +38,6 @@ class MentorController {
                 data: mentor
             });
         } catch (error) {
-            // Jika pesan error spesifik dari service (Not Found)
             if (error.message === 'Mentor tidak ditemukan.') {
                 return res.status(404).json({ success: false, message: error.message });
             }
@@ -53,13 +53,21 @@ class MentorController {
         try {
             const newMentor = await MentorService.createMentor(req.body);
 
+            // [INJEKSI LOG] Pencatatan pendaftaran mentor
+            await ActivityLoggerService.logActivity({
+                userId: req.user?.id || 'SYSTEM',
+                action: 'CREATE',
+                resourceType: 'Mentor',
+                resourceId: newMentor.id,
+                details: { email: newMentor.email }
+            });
+
             return res.status(201).json({
                 success: true,
                 message: 'Mentor berhasil didaftarkan.',
                 data: newMentor
             });
         } catch (error) {
-            // Menangkap error validasi bisnis (seperti email duplikat)
             if (error.message === 'Email sudah terdaftar sebagai Mentor.') {
                 return res.status(400).json({ success: false, message: error.message });
             }
@@ -75,6 +83,15 @@ class MentorController {
         try {
             const { id } = req.params;
             const updatedMentor = await MentorService.updateMentor(id, req.body);
+
+            // [INJEKSI LOG] Pencatatan update data mentor
+            await ActivityLoggerService.logActivity({
+                userId: req.user?.id || 'SYSTEM',
+                action: 'UPDATE',
+                resourceType: 'Mentor',
+                resourceId: id,
+                details: { updatedFields: Object.keys(req.body) }
+            });
 
             return res.status(200).json({
                 success: true,
@@ -97,6 +114,14 @@ class MentorController {
         try {
             const { id } = req.params;
             const result = await MentorService.deleteMentor(id);
+
+            // [INJEKSI LOG] Pencatatan penghapusan mentor
+            await ActivityLoggerService.logActivity({
+                userId: req.user?.id || 'SYSTEM',
+                action: 'DELETE',
+                resourceType: 'Mentor',
+                resourceId: id
+            });
 
             return res.status(200).json({
                 success: true,

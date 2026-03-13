@@ -1,4 +1,5 @@
 import UserService from '../services/userService.js';
+import ActivityLoggerService from '../services/activityLoggerService.js';
 
 class UserController {
     /**
@@ -7,7 +8,6 @@ class UserController {
      */
     static async getAllUsers(req, res) {
         try {
-            // Mengekstrak query parameter untuk delegasi filter ke tingkat ORM
             const filters = {};
             if (req.query.role) filters.role = req.query.role;
             if (req.query.mentor_id) filters.mentor_id = req.query.mentor_id;
@@ -58,13 +58,21 @@ class UserController {
         try {
             const newUser = await UserService.createUser(req.body);
 
+            // [INJEKSI LOG] Pencatatan aktivitas pembuatan pengguna
+            await ActivityLoggerService.logActivity({
+                userId: req.user?.id || 'SYSTEM', // Mengambil ID dari JWT pembuat (misal: Admin)
+                action: 'CREATE',
+                resourceType: 'User',
+                resourceId: newUser.id,
+                details: { role: req.body.role, email: newUser.email }
+            });
+
             return res.status(201).json({
                 success: true,
                 message: 'Pengguna berhasil didaftarkan.',
                 data: newUser
             });
         } catch (error) {
-            // Mapping eksepsi bisnis dari service layer ke status kode 400
             const badRequestMessages = [
                 'Email sudah terdaftar dalam sistem.',
                 'Mentor yang dituju tidak valid.',
@@ -87,6 +95,15 @@ class UserController {
         try {
             const { id } = req.params;
             const updatedUser = await UserService.updateUser(id, req.body);
+
+            // [INJEKSI LOG] Pencatatan aktivitas pembaruan pengguna
+            await ActivityLoggerService.logActivity({
+                userId: req.user?.id || 'SYSTEM',
+                action: 'UPDATE',
+                resourceType: 'User',
+                resourceId: id,
+                details: { updatedFields: Object.keys(req.body) } // Mencatat field apa saja yang diubah
+            });
 
             return res.status(200).json({
                 success: true,
@@ -115,6 +132,14 @@ class UserController {
         try {
             const { id } = req.params;
             const result = await UserService.deleteUser(id);
+
+            // [INJEKSI LOG] Pencatatan aktivitas penghapusan pengguna
+            await ActivityLoggerService.logActivity({
+                userId: req.user?.id || 'SYSTEM',
+                action: 'DELETE',
+                resourceType: 'User',
+                resourceId: id
+            });
 
             return res.status(200).json({
                 success: true,
