@@ -4,13 +4,13 @@ import { Model, DataTypes } from 'sequelize';
 export default (sequelize) => {
   class User extends Model {
     static associate(models) {
-      // User didampingi oleh Mentor [cite: 370]
+      // User didampingi oleh Mentor
       this.belongsTo(models.Mentor, { foreignKey: 'mentor_id', as: 'mentor' });
 
-      // User memiliki banyak Proyek [cite: 371]
+      // User memiliki banyak Proyek
       this.hasMany(models.Project, { foreignKey: 'user_id' });
 
-      // User memiliki catatan progres [cite: 372]
+      // User memiliki catatan progres
       this.hasMany(models.UserProgress, { foreignKey: 'user_id' });
 
       /**
@@ -22,11 +22,17 @@ export default (sequelize) => {
   }
 
   User.init({
-    nama: { type: DataTypes.STRING, allowNull: false }, // [cite: 373]
-    email: { type: DataTypes.STRING, unique: true, allowNull: false }, // [cite: 373]
-    password: { type: DataTypes.STRING, allowNull: false }, // [cite: 373]
-    level_saat_ini: DataTypes.STRING, // [cite: 373]
-    persentase_progres: { type: DataTypes.FLOAT, defaultValue: 0 } // [cite: 373]
+    nama: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, unique: true, allowNull: false },
+    password: { type: DataTypes.STRING, allowNull: false },
+    level_saat_ini: DataTypes.STRING,
+    persentase_progres: { type: DataTypes.FLOAT, defaultValue: 0 },
+    // Penambahan atribut role sebagai resolusi entitas Admin
+    role: {
+      type: DataTypes.ENUM('admin', 'peserta'),
+      allowNull: false,
+      defaultValue: 'peserta'
+    }
   }, {
     sequelize,
     modelName: 'User',

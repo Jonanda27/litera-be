@@ -63,3 +63,6 @@ export const verifyRole = (roles = []) => {
 
 // Alias otentikasi universal (Bisa diakses oleh semua role yang valid)
 export const verifyToken = verifyRole([]);
+
+// [BARU] Alias otorisasi ketat khusus Admin
+export const isAdmin = verifyRole(['admin']);
