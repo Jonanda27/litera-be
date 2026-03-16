@@ -2,7 +2,7 @@
 'use strict';
 
 /** @type {import('sequelize-cli').Migration} */
-module.exports = {
+export default {
     async up(queryInterface, Sequelize) {
         await queryInterface.createTable('ActivityLogs', {
             id: {
@@ -12,7 +12,7 @@ module.exports = {
                 defaultValue: Sequelize.UUIDV4
             },
             userId: {
-                type: Sequelize.UUID,
+                type: Sequelize.INTEGER,
                 allowNull: true, // Diizinkan null untuk mengakomodasi aksi sistem (contoh: Cron Job / Auto-expiry)
                 references: {
                     model: 'Users', // Asumsi nama tabel pengguna di database Anda adalah 'Users'

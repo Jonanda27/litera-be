@@ -7,30 +7,41 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // 1. Cari akun di tabel User (untuk Peserta atau Admin)
     let account = await User.findOne({ where: { email } });
-    let role = 'user';
+    let role;
 
-    if (!account) {
+    if (account) {
+      // PERBAIKAN: Ambil role langsung dari kolom 'role' di database
+      // Nilainya bisa 'admin' atau 'peserta' sesuai data di tabel Users
+      role = account.role; 
+    } else {
+      // 2. Jika tidak ada di tabel User, cari di tabel Mentor
       account = await Mentor.findOne({ where: { email } });
-      role = 'mentor';
+      if (account) {
+        role = 'mentor';
+      }
     }
 
+    // 3. Validasi jika akun benar-benar tidak ditemukan
     if (!account) {
       return res.status(404).json({ message: "Akun tidak ditemukan" });
     }
 
+    // 4. Bandingkan password yang diinput dengan password terenkripsi di database
     const isPasswordValid = await bcrypt.compare(password, account.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Password salah" });
     }
 
+    // 5. Buat JWT Token dengan role yang sudah dinamis
     const token = jwt.sign(
       { id: account.id, role: role },
       process.env.JWT_SECRET || "rahasia_negara",
       { expiresIn: "24h" }
     );
 
-    // [INJEKSI LOG] Catat keberhasilan Login
+    // 6. [INJEKSI LOG] Catat keberhasilan Login ke Activity Log
     await ActivityLoggerService.logActivity({
       userId: account.id,
       action: 'LOGIN',
@@ -38,17 +49,21 @@ export const login = async (req, res) => {
       details: { role: role }
     });
 
+    // 7. Berikan response sukses ke Frontend
     res.status(200).json({
       message: "Login berhasil",
       token,
       user: {
         id: account.id,
         email: account.email,
-        role: role
+        role: role // Mengirimkan role 'admin', 'peserta', atau 'mentor'
       }
     });
   } catch (error) {
-    res.status(500).json({ message: "Terjadi kesalahan server", error: error.message });
+    res.status(500).json({ 
+      message: "Terjadi kesalahan server", 
+      error: error.message 
+    });
   }
 };
 

@@ -1,25 +1,13 @@
-// models/activitylog.js
 'use strict';
-const { Model } = require('sequelize');
+import { Model } from 'sequelize'; // Gunakan import, bukan require
 
-module.exports = (sequelize, DataTypes) => {
+export default (sequelize, DataTypes) => { // Gunakan export default
     class ActivityLog extends Model {
-        /**
-         * Helper method for defining associations.
-         * This method is not a part of Sequelize lifecycle.
-         * The `models/index` file will call this method automatically.
-         */
         static associate(models) {
-            // 1. Relasi Eksplisit: Log Activity menjadi milik User (Pelaku Aksi)
             ActivityLog.belongsTo(models.User, {
                 foreignKey: 'userId',
                 as: 'actor'
             });
-
-            // 2. Relasi Implisit (Polymorphic): 
-            // Sesuai prinsip Low Coupling, kita TIDAK mendefinisikan .belongsTo() 
-            // ke model seperti Mentor, Book, dll. Kolom entityType dan entityId 
-            // sudah cukup untuk kebutuhan rekam jejak tanpa mengikat integritas referensial.
         }
     }
 
@@ -30,15 +18,12 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
         },
         userId: {
-            type: DataTypes.UUID,
+            type: DataTypes.INTEGER,
             allowNull: true,
         },
         action: {
             type: DataTypes.STRING,
             allowNull: false,
-            validate: {
-                notEmpty: true
-            }
         },
         entityType: {
             type: DataTypes.STRING,
@@ -51,11 +36,6 @@ module.exports = (sequelize, DataTypes) => {
         details: {
             type: DataTypes.JSON,
             allowNull: true,
-            // Memastikan data yang masuk selalu berupa objek JSON yang valid
-            get() {
-                const rawValue = this.getDataValue('details');
-                return typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
-            }
         }
     }, {
         sequelize,

@@ -41,6 +41,7 @@ import nonFictionChapterStructureModel from "./nonfictionchapterstructure.js";
 import discussionMemberModel from "./discussionmember.js";
 import nonFictionChapterContentModel from "./nonfictionchaptercontent.js";
 import chapterContentSummaryModel from "./chaptercontentsummary.js";
+import activityLogModel from "./activitylog.js";
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -88,6 +89,7 @@ db.NonFictionChapterStructure = nonFictionChapterStructureModel(sequelize, DataT
 db.DiscussionMember = discussionMemberModel(sequelize, DataTypes);
 db.NonFictionChapterContent = nonFictionChapterContentModel(sequelize, DataTypes);
 db.ChapterContentSummary = chapterContentSummaryModel(sequelize, DataTypes);
+db.ActivityLog = activityLogModel(sequelize, DataTypes);
 
 // --- Inisialisasi Model Revisi ---
 db.ChapterVersion = chapterVersionModel(sequelize, DataTypes);
@@ -98,6 +100,10 @@ db.ChatMessage = chatMessageModel(sequelize, DataTypes);
 db.Discussion = discussionModel(sequelize, DataTypes);
 
 // 2. Definisi Relasi (Asosiasi) Secara Manual
+// --- RELASI USER & MENTOR ---
+db.Mentor.hasMany(db.User, { foreignKey: 'mentor_id', as: 'students' });
+db.User.belongsTo(db.Mentor, { foreignKey: 'mentor_id', as: 'mentor' });
+
 db.Discussion.hasMany(db.ChatMessage, { foreignKey: 'discussionId', as: 'messages' });
 db.ChatMessage.belongsTo(db.Discussion, { foreignKey: 'discussionId' });
 
@@ -164,6 +170,9 @@ db.NonFictionChapterStructure.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.Book.hasMany(db.ChapterContentSummary, { foreignKey: 'bookId' }); 
 db.ChapterContentSummary.belongsTo(db.Book, { foreignKey: 'bookId' });
 
+db.User.hasMany(db.ActivityLog, { foreignKey: 'userId', as: 'activities' });
+db.ActivityLog.belongsTo(db.User, { foreignKey: 'userId', as: 'actor' });
+
 db.User.belongsToMany(db.Discussion, { 
   through: db.DiscussionMember, 
   foreignKey: 'user_id', 
@@ -175,17 +184,22 @@ db.Discussion.belongsToMany(db.User, {
   as: 'members' 
 });
 
+// --- TAMBAHAN AGAR SERVICE BISA MEMBACA KONEKSI DAN TRANSACTION ---
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
+
 // 3. Jalankan asosiasi otomatis
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate && 
       // Tambahkan model baru ke daftar pengecualian jika tidak ingin diproses otomatis di loop ini
-      // (karena sudah kita definisikan manual di atas)
       modelName !== 'ChatMessage' && 
+      modelName !== 'Mentor' &&
       modelName !== 'User' && 
       modelName !== 'Book' && 
       modelName !== 'Discussion' &&
       modelName !== 'NonFictionResearch' &&
-      modelName !== 'NonFictionChapterContent') { 
+      modelName !== 'NonFictionChapterContent' &&
+      modelName !== 'ActivityLog') {
     db[modelName].associate(db);
   }
 });
@@ -198,7 +212,7 @@ export const {
   Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea, 
   Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount,
   ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource, 
-  NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, DiscussionMember, NonFictionChapterContent, ChapterContentSummary
+  NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, DiscussionMember, NonFictionChapterContent, ChapterContentSummary, ActivityLog
 } = db;
 
 export default db;

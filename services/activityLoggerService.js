@@ -1,56 +1,47 @@
-// File: services/activityLoggerService.js
-import { create } from './models/ActivityLog'; // Sesuaikan dengan path model Anda
+// Gunakan import db agar model ActivityLog terinisialisasi dengan benar
+import db from '../models/index.js';
+
+// Ambil model dari objek db
+const { ActivityLog } = db;
 
 /**
  * ActivityLoggerService
- * * Bertanggung jawab penuh sebagai sistem perantara (Indirection) untuk 
- * mencatat jejak aktivitas. Pemisahan ini memastikan bahwa jika ke depannya
- * mekanisme logging berubah (misalnya pindah dari Database ke Message Broker seperti RabbitMQ/Kafka),
- * kita hanya perlu mengubah kelas ini tanpa menyentuh Controller (Protected Variations).
+ * Bertanggung jawab sebagai sistem perantara untuk mencatat jejak aktivitas.
  */
 class ActivityLoggerService {
     /**
      * Mengeksekusi pencatatan aktivitas.
-     * * @param {Object} payload
-     * @param {string} payload.userId - ID pengguna yang memicu aktivitas.
-     * @param {string} payload.action - Jenis operasi (contoh: 'CREATE', 'UPDATE', 'DELETE', 'APPROVE').
-     * @param {string} payload.resourceType - Nama entitas target (contoh: 'Transaction', 'User').
-     * @param {string|null} [payload.resourceId] - ID spesifik entitas target (opsional).
-     * @param {Object} [payload.details] - Data tambahan atau snapshot perubahan (opsional).
-     * @returns {Promise<Object|null>} Mengembalikan instance log atau null jika gagal.
+     * @param {Object} payload
      */
     static async logActivity({ userId, action, resourceType, resourceId = null, details = {} }) {
         try {
-            // Defensive programming: pastikan parameter absolut terpenuhi
+            // Defensive programming
             if (!userId || !action || !resourceType) {
-                console.warn('[ActivityLoggerService] Peringatan: userId, action, dan resourceType wajib diisi. Logging dilewati.');
+                console.warn('[ActivityLoggerService] Peringatan: userId, action, dan resourceType wajib diisi.');
                 return null;
             }
 
-            const newLog = await create({
+            /**
+             * PERBAIKAN: 
+             * 1. Gunakan ActivityLog.create (bukan create saja)
+             * 2. Sesuaikan nama properti dengan model (entityType & entityId)
+             */
+            const newLog = await ActivityLog.create({
                 userId,
                 action,
-                resourceType,
-                resourceId,
+                entityType: resourceType, // Menyesuaikan dengan kolom di model kamu
+                entityId: resourceId,     // Menyesuaikan dengan kolom di model kamu
                 details
-                // createdAt biasanya otomatis di-handle oleh timestamps (Mongoose/Sequelize)
             });
 
             return newLog;
 
         } catch (error) {
-            /* * STRATEGI ERROR HANDLING:
-             * Logging biasanya adalah "Side Effect". Jika database log mengalami gangguan, 
-             * proses bisnis utama (misal: Checkout Barang) TIDAK BOLEH ikut gagal.
-             * Oleh karena itu, kita menangkap error di sini dan mengembalikannya sebagai null,
-             * hanya mencatatnya di level system error (bisa diarahkan ke Winston/Sentry).
+            /**
+             * STRATEGI FAIL-SAFE:
+             * Jika logging gagal, aplikasi utama tidak boleh mati.
              */
             console.error('[ActivityLoggerService] Gagal merekam jejak aktivitas:', error.message);
-
-            // Catatan Analis: Jika requirement sistem mewajibkan "Strict Audit" (Transaksi gagal jika log gagal),
-            // baris throw error di bawah ini harus diaktifkan. Untuk sekarang, kita buat Fail-Safe.
-            // throw new Error('System Audit Failure');
-
             return null;
         }
     }

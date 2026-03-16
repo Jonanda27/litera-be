@@ -79,18 +79,32 @@ export default {
 
     await queryInterface.bulkInsert('Lessons', allLessons, {});
 
-    // 5. Seed Users
+    // 5. Seed Users (Peserta & Admin)
     const targetEmail = 'test@geocitra.com';
-    await queryInterface.bulkInsert('Users', [{
-      nama: 'Geocitra',
-      email: targetEmail,
-      password: hashedPassword,
-      mentor_id: mentorId,
-      level_saat_ini: 'Level 1: Dasar-Dasar Literasi',
-      persentase_progres: 0,
-      createdAt: now,
-      updatedAt: now
-    }], {});
+    await queryInterface.bulkInsert('Users', [
+      {
+        nama: 'Geocitra',
+        email: targetEmail,
+        password: hashedPassword,
+        mentor_id: mentorId,
+        level_saat_ini: 'Level 1: Dasar-Dasar Literasi',
+        persentase_progres: 0,
+        role: 'peserta',
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        nama: 'Admin Litera',
+        email: 'admin@geocitra.com',
+        password: hashedPassword,
+        mentor_id: null,
+        level_saat_ini: null,
+        persentase_progres: 0,
+        role: 'admin',
+        createdAt: now,
+        updatedAt: now
+      }
+    ], {});
 
     const [users] = await queryInterface.sequelize.query(`SELECT id FROM "Users" WHERE "email" = '${targetEmail}' LIMIT 1;`);
     const userId = users[0].id;

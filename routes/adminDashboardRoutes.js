@@ -8,6 +8,6 @@ const router = express.Router();
  * GET /api/v1/admin/dashboard/summary
  * Dilindungi oleh middleware: hanya token dengan role 'Admin' yang lolos.
  */
-router.get("/summary", verifyRole(['Admin']), getDashboardSummary);
+router.get("/summary", verifyRole(['admin']), getDashboardSummary);
 
 export default router;

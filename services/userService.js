@@ -2,6 +2,7 @@ import db from '../models/index.js';
 import bcrypt from 'bcrypt';
 import MentorService from './mentorService.js';
 
+// PERBAIKAN: Pastikan sequelize diambil dari objek db yang diekspor dari models/index.js
 const { User, sequelize } = db;
 
 class UserService {
@@ -54,6 +55,11 @@ class UserService {
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
         // 3. Memulai Transaksi Basis Data Terisolasi
+        // PERBAIKAN: Memastikan sequelize tersedia sebelum memanggil transaction()
+        if (!sequelize) {
+            throw new Error('Database connection (sequelize) is not initialized in UserService.');
+        }
+
         const transaction = await sequelize.transaction();
 
         try {
@@ -84,7 +90,7 @@ class UserService {
 
         } catch (error) {
             // Rollback mutasi jika terjadi kegagalan (misal: kuota habis saat concurrent request)
-            await transaction.rollback();
+            if (transaction) await transaction.rollback();
             throw error;
         }
     }
@@ -93,6 +99,10 @@ class UserService {
      * Memperbarui entitas pengguna dan menangani pergantian mentor
      */
     static async updateUser(id, data) {
+        if (!sequelize) {
+            throw new Error('Database connection (sequelize) is not initialized in UserService.');
+        }
+
         const transaction = await sequelize.transaction();
 
         try {
@@ -102,8 +112,10 @@ class UserService {
             const updateData = { ...data };
 
             // Penanganan khusus jika ada pembaruan kata sandi
-            if (updateData.password) {
+            if (updateData.password && updateData.password.trim() !== "") {
                 updateData.password = await bcrypt.hash(updateData.password, 10);
+            } else {
+                delete updateData.password; // Jangan update password jika kosong
             }
 
             // Penanganan rute logika jika peserta berganti mentor
@@ -123,7 +135,7 @@ class UserService {
             return updatedUser;
 
         } catch (error) {
-            await transaction.rollback();
+            if (transaction) await transaction.rollback();
             throw error;
         }
     }
@@ -132,6 +144,10 @@ class UserService {
      * Menghapus pengguna (dan membersihkan reservasi kuota mentornya)
      */
     static async deleteUser(id) {
+        if (!sequelize) {
+            throw new Error('Database connection (sequelize) is not initialized in UserService.');
+        }
+
         const transaction = await sequelize.transaction();
 
         try {
@@ -147,7 +163,7 @@ class UserService {
 
             return { message: 'Pengguna berhasil dihapus dan relasi dibersihkan.' };
         } catch (error) {
-            await transaction.rollback();
+            if (transaction) await transaction.rollback();
             throw error;
         }
     }
