@@ -6,12 +6,13 @@ import meetingRoutes from "./routes/meetingRoutes.js";
 import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
+import adminExerciseRoutes from "./routes/adminRoutes.js";
 
 // [BARU] Import router log aktivitas
 import activityLogRoutes from "./routes/activityLogRoutes.js";
 
 const app = express();
-
+app.use(express.static('public'));
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 
 // Naikkan limit ukuran payload JSON menjadi 50mb (bisa disesuaikan)
@@ -26,6 +27,7 @@ app.use("/api/meetings", meetingRoutes);
 
 // Daftarkan route khusus admin dashboard
 app.use("/api/v1/admin/dashboard", adminDashboardRoutes);
+app.use("/api/admin/exercise", adminExerciseRoutes);
 
 // Daftarkan route manajemen entitas (akan diproteksi di level router masing-masing)
 app.use("/api/users", userRoutes);
@@ -33,6 +35,8 @@ app.use("/api/mentors", mentorRoutes);
 
 // [BARU] Daftarkan route khusus untuk log aktivitas
 app.use("/api/activity-logs", activityLogRoutes);
+
+app.use('/uploads', express.static('public/uploads'));
 
 app.get("/", (req, res) => res.send("Backend aktif ✅"));
 
