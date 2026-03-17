@@ -252,13 +252,34 @@ export const updateProgress = async (req, res) => {
 export const updateModuleProgress = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { lessonId, moduleId } = req.body;
+    // TANGKAP data jawaban dan skor dari body
+    const { lessonId, moduleId, jawaban_user, skor } = req.body;
 
-    await UserProgress.findOrCreate({
-      where: { user_id: userId, lesson_id: lessonId, module_id: moduleId },
-      defaults: { status_selesai: true }
+    // Cari data progress yang sudah ada
+    let progress = await UserProgress.findOne({
+      where: { user_id: userId, lesson_id: lessonId, module_id: moduleId }
     });
 
+    if (progress) {
+      // Jika sudah ada, update status, jawaban, dan skor
+      await progress.update({ 
+        status_selesai: true, 
+        jawaban_user: jawaban_user || progress.jawaban_user,
+        skor: skor !== undefined ? skor : progress.skor 
+      });
+    } else {
+      // Jika belum ada, buat baru
+      progress = await UserProgress.create({
+        user_id: userId,
+        lesson_id: lessonId,
+        module_id: moduleId,
+        status_selesai: true,
+        jawaban_user: jawaban_user || null,
+        skor: skor || 0
+      });
+    }
+
+    // --- Logic hitung persentase tetap sama seperti kode Anda ---
     const completedCount = await UserProgress.count({
       where: { user_id: userId, module_id: moduleId, status_selesai: true }
     });
@@ -274,12 +295,17 @@ export const updateModuleProgress = async (req, res) => {
       { where: { id: userId } }
     );
 
-    // [INJEKSI LOG] Catat penyelesaian materi pembelajaran
+    // Logging aktivitas
     await ActivityLoggerService.logActivity({
       userId: userId,
       action: 'COMPLETE_LESSON',
       resourceType: 'UserProgress',
-      details: { moduleId: moduleId, lessonId: lessonId, currentModulePercentage: percentage }
+      details: { 
+        moduleId: moduleId, 
+        lessonId: lessonId, 
+        currentModulePercentage: percentage,
+        score: skor // Tambahkan skor di log
+      }
     });
 
     res.status(200).json({

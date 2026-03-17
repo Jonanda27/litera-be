@@ -7,6 +7,7 @@ import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
 import adminExerciseRoutes from "./routes/adminRoutes.js";
+import ExerciseRoutes from "./routes/exerciseRoutes.js";
 
 // [BARU] Import router log aktivitas
 import activityLogRoutes from "./routes/activityLogRoutes.js";
@@ -35,6 +36,8 @@ app.use("/api/mentors", mentorRoutes);
 
 // [BARU] Daftarkan route khusus untuk log aktivitas
 app.use("/api/activity-logs", activityLogRoutes);
+
+app.use("/api/exercise", ExerciseRoutes);
 
 app.use('/uploads', express.static('public/uploads'));
 
