@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 config/
+uploads/
 
 # Environment variables (Sangat Penting!)
 .env

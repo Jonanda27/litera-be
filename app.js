@@ -1,14 +1,20 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from 'url';
 import authRoutes from "./routes/authRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js";
 import meetingRoutes from "./routes/meetingRoutes.js";
+import liveSessionRoutes from "./routes/liveSessionRoutes.js";
 import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
 
 // [BARU] Import router log aktivitas
 import activityLogRoutes from "./routes/activityLogRoutes.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -23,6 +29,9 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/meetings", meetingRoutes);
+app.use("/api/live-session", liveSessionRoutes);
+
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Daftarkan route khusus admin dashboard
 app.use("/api/v1/admin/dashboard", adminDashboardRoutes);
