@@ -29,7 +29,9 @@ export default (sequelize) => {
     status_selesai: { 
       type: DataTypes.BOOLEAN, 
       defaultValue: false 
-    }
+    },
+    jawaban_user: { type: DataTypes.JSONB, allowNull: true }, // Tambahkan ini
+    skor: { type: DataTypes.INTEGER, allowNull: true }
   }, {
     sequelize,
     modelName: 'UserProgress',

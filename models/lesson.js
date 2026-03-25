@@ -11,7 +11,12 @@ export default (sequelize) => {
   Lesson.init({
     judul_materi: DataTypes.STRING,
     tipe_konten: DataTypes.STRING,
-    url_konten: DataTypes.STRING
+    url_konten: DataTypes.STRING,
+    soal_evaluasi: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: []
+    }
   }, {
     sequelize,
     modelName: 'Lesson',

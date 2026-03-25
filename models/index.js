@@ -175,6 +175,19 @@ db.ChapterContentSummary.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.User.hasMany(db.ActivityLog, { foreignKey: 'userId', as: 'activities' });
 db.ActivityLog.belongsTo(db.User, { foreignKey: 'userId', as: 'actor' });
 
+// --- RELASI LESSON & USERPROGRESS (Tambahkan ini) ---
+db.Lesson.hasMany(db.UserProgress, { foreignKey: 'lesson_id', as: 'userProgress' });
+db.UserProgress.belongsTo(db.Lesson, { foreignKey: 'lesson_id', as: 'lesson' });
+
+// --- RELASI USER & USERPROGRESS (Tambahkan jika belum ada) ---
+db.User.hasMany(db.UserProgress, { foreignKey: 'user_id', as: 'progressList' });
+db.UserProgress.belongsTo(db.User, { foreignKey: 'user_id' });
+
+// --- RELASI MODULE & LESSON (Opsional tapi penting) ---
+db.Module.hasMany(db.Lesson, { foreignKey: 'module_id', as: 'lessons' });
+db.Lesson.belongsTo(db.Module, { foreignKey: 'module_id' });
+
+
 db.User.belongsToMany(db.Discussion, {
   through: db.DiscussionMember,
   foreignKey: 'user_id',
