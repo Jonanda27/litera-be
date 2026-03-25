@@ -3,6 +3,7 @@ import http from "http";
 import { Server } from "socket.io";
 import app from "./app.js";
 import { ChatMessage, User } from "./models/index.js";
+import { initWebRTCSocket } from "./sockets/webrtc.socket.js";
 
 const PORT = process.env.PORT || 4000;
 const server = http.createServer(app);
@@ -35,41 +36,32 @@ io.on("connection", (socket) => {
 
   // 2. EVENT SEND MESSAGE
   socket.on("send_message", async (data) => {
-  try {
-    // 1. Simpan ke Database
-    const savedMsg = await ChatMessage.create({
-      discussionId: data.room,
-      senderId: data.senderId,
-      message: data.text || "", // Jika hanya kirim gambar, teks bisa kosong
-      imageUrl: data.image     // Pastikan ini mengambil data.image dari frontend
-    });
+    try {
+      // Simpan ke database
+      const savedMsg = await ChatMessage.create({
+        discussionId: data.room,
+        senderId: data.senderId,
+        message: data.text
+      });
 
-    // 2. Ambil Nama Pengirim
-    const sender = await User.findByPk(data.senderId, {
-      attributes: ['nama']
-    });
+      // Ambil data pengirim
+      const sender = await User.findByPk(data.senderId, { attributes: ['nama'] });
 
-    // 3. Susun Payload untuk dikirim balik (Broadcast)
-    const payload = {
-      id: savedMsg.id,
-      text: data.text,
-      image: data.image, // SANGAT PENTING: Sertakan ini agar user lain bisa melihat gambar
-      sender: sender ? sender.nama : "User",
-      senderId: data.senderId,
-      room: data.room,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-    };
+      const payload = {
+        id: savedMsg.id,
+        text: savedMsg.message,
+        sender: sender ? sender.nama : "Anonim",
+        senderId: data.senderId,
+        room: data.room,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
 
-    // 4. Kirim ke semua orang di ruangan tersebut
-    io.to(data.room).emit("receive_message", payload);
-    
-  } catch (error) {
-    console.error("❌ Error Socket:", error);
-  }
-});
+      // Pancarkan ke semua orang di room tersebut
+      io.to(data.room).emit("receive_message", payload);
+    } catch (error) {
+      console.error("❌ Error socket:", error.message);
+    }
+  });
 
   // 3. EVENT DISCONNECT
   socket.on("disconnect", () => {
@@ -93,6 +85,8 @@ io.on("connection", (socket) => {
 
     io.to(discussionId).emit("online_users_list", usersInRoom);
   };
+
+  initWebRTCSocket(io, socket);
 });
 
 server.listen(PORT, () => console.log(`🚀 Server aktif di port ${PORT}`));
