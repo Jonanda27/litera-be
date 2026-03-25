@@ -35,32 +35,41 @@ io.on("connection", (socket) => {
 
   // 2. EVENT SEND MESSAGE
   socket.on("send_message", async (data) => {
-    try {
-      // Simpan ke database
-      const savedMsg = await ChatMessage.create({
-        discussionId: data.room,
-        senderId: data.senderId,
-        message: data.text
-      });
+  try {
+    // 1. Simpan ke Database
+    const savedMsg = await ChatMessage.create({
+      discussionId: data.room,
+      senderId: data.senderId,
+      message: data.text || "", // Jika hanya kirim gambar, teks bisa kosong
+      imageUrl: data.image     // Pastikan ini mengambil data.image dari frontend
+    });
 
-      // Ambil data pengirim
-      const sender = await User.findByPk(data.senderId, { attributes: ['nama'] });
+    // 2. Ambil Nama Pengirim
+    const sender = await User.findByPk(data.senderId, {
+      attributes: ['nama']
+    });
 
-      const payload = {
-        id: savedMsg.id,
-        text: savedMsg.message,
-        sender: sender ? sender.nama : "Anonim",
-        senderId: data.senderId,
-        room: data.room,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
+    // 3. Susun Payload untuk dikirim balik (Broadcast)
+    const payload = {
+      id: savedMsg.id,
+      text: data.text,
+      image: data.image, // SANGAT PENTING: Sertakan ini agar user lain bisa melihat gambar
+      sender: sender ? sender.nama : "User",
+      senderId: data.senderId,
+      room: data.room,
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+    };
 
-      // Pancarkan ke semua orang di room tersebut
-      io.to(data.room).emit("receive_message", payload);
-    } catch (error) {
-      console.error("❌ Error socket:", error.message);
-    }
-  });
+    // 4. Kirim ke semua orang di ruangan tersebut
+    io.to(data.room).emit("receive_message", payload);
+    
+  } catch (error) {
+    console.error("❌ Error Socket:", error);
+  }
+});
 
   // 3. EVENT DISCONNECT
   socket.on("disconnect", () => {

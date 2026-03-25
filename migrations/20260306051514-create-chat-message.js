@@ -2,24 +2,45 @@
 export default {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('Chat_Messages', {
-      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: Sequelize.INTEGER },
-   // Ganti baris 6 di file migrasi tersebut menjadi:
-discussionId: { 
-  type: Sequelize.INTEGER, 
-  allowNull: false, 
-  references: { model: 'Discussions', key: 'id' }, 
-  onUpdate: 'CASCADE', onDelete: 'CASCADE' 
-},
+      id: { 
+        allowNull: false, 
+        autoIncrement: true, 
+        primaryKey: true, 
+        type: Sequelize.INTEGER 
+      },
+      discussionId: { 
+        type: Sequelize.INTEGER, 
+        allowNull: false, 
+        references: { model: 'Discussions', key: 'id' }, 
+        onUpdate: 'CASCADE', 
+        onDelete: 'CASCADE' 
+      },
       senderId: { 
         type: Sequelize.INTEGER, 
         allowNull: false, 
         references: { model: 'Users', key: 'id' }, 
-        onUpdate: 'CASCADE', onDelete: 'CASCADE' 
+        onUpdate: 'CASCADE', 
+        onDelete: 'CASCADE' 
       },
-      message: { type: Sequelize.TEXT, allowNull: false },
-      createdAt: { allowNull: false, type: Sequelize.DATE },
-      updatedAt: { allowNull: false, type: Sequelize.DATE }
+      message: { 
+        type: Sequelize.TEXT, 
+        allowNull: true // Izinkan null jika user hanya mengirim gambar
+      },
+      imageUrl: { 
+        type: Sequelize.TEXT, // Kolom baru untuk data gambar
+        allowNull: true 
+      },
+      createdAt: { 
+        allowNull: false, 
+        type: Sequelize.DATE 
+      },
+      updatedAt: { 
+        allowNull: false, 
+        type: Sequelize.DATE 
+      }
     });
   },
-  async down(queryInterface, Sequelize) { await queryInterface.dropTable('Chat_Messages'); }
+  async down(queryInterface, Sequelize) { 
+    await queryInterface.dropTable('Chat_Messages'); 
+  }
 };

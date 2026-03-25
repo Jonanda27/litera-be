@@ -18,12 +18,16 @@ export default (sequelize, DataTypes) => {
     },
     message: { 
       type: DataTypes.TEXT, 
-      allowNull: false 
+      allowNull: true // Ubah ke true agar bisa kirim gambar saja tanpa teks
+    },
+    imageUrl: { 
+      type: DataTypes.TEXT, // Menggunakan TEXT untuk menampung string Base64
+      allowNull: true 
     }
   }, {
     sequelize,
     modelName: 'ChatMessage',
-    tableName: 'Chat_Messages', // Pastikan nama tabel di DB sesuai 
+    tableName: 'Chat_Messages', 
   });
   return ChatMessage;
 };
