@@ -1,4 +1,4 @@
-import { sequelize, Book, QuickIdea, MoodBoard, Research, Outline, Chapter, Character, Setting, Timeline, Plot, ReviewComment, ChapterVersion, DailyWordCount, ChatMessage, User, Discussion } from "../models/index.js";
+import { sequelize, Book, QuickIdea, MoodBoard, Research, Outline, Chapter, Character, Setting, Timeline, Plot, ReviewComment, ChapterVersion, DailyWordCount, ChatMessage, User} from "../models/index.js";
 import { Op } from "sequelize";
 
 // 1. GET WEEKLY STATS & TOTAL PAGES
@@ -542,5 +542,46 @@ export const getMyBooks = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ message: "Gagal mengambil daftar buku", error: error.message });
+    }
+};
+
+export const saveCovers = async (req, res) => {
+    try {
+        const { bookId, coverFront, coverBack } = req.body;
+        const userId = req.user.id; // Diambil dari middleware autentikasi
+
+        if (!bookId) {
+            return res.status(400).json({ message: "bookId wajib disertakan" });
+        }
+
+        // Cari buku berdasarkan ID dan pastikan milik user yang sedang login
+        const book = await Book.findOne({
+            where: { id: bookId, userId }
+        });
+
+        if (!book) {
+            return res.status(404).json({ message: "Proyek buku tidak ditemukan atau akses ditolak" });
+        }
+
+        // Update kolom coverFront dan coverBack
+        // Menggunakan pengecekan undefined agar jika hanya satu cover yang dikirim, yang lain tidak terhapus
+        await book.update({
+            coverFront: coverFront !== undefined ? coverFront : book.coverFront,
+            coverBack: coverBack !== undefined ? coverBack : book.coverBack
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Sampul buku berhasil diperbarui",
+            data: {
+                bookId: book.id,
+                hasCoverFront: !!book.coverFront,
+                hasCoverBack: !!book.coverBack
+            }
+        });
+
+    } catch (error) {
+        console.error("Error saveCovers:", error);
+        res.status(500).json({ message: "Gagal menyimpan sampul", error: error.message });
     }
 };

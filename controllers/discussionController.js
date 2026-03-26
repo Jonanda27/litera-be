@@ -40,9 +40,22 @@ export const getMyJoinedDiscussions = async (req, res) => {
 export const createDiscussion = async (req, res) => {
   try {
     const { name, description } = req.body;
-    const userId = req.user.id; // Diambil dari middleware auth [cite: 1665]
+    const userId = req.user.id; // Diambil dari middleware auth
 
     if (!name) return res.status(400).json({ message: "Nama ruangan wajib diisi" });
+
+    // --- PENGECEKAN BATASAN 1 USER 1 GRUP ---
+    const existingDiscussion = await Discussion.findOne({ 
+      where: { owner_id: userId } 
+    });
+
+    if (existingDiscussion) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Anda hanya diperbolehkan membuat satu ruang diskusi." 
+      });
+    }
+    // ----------------------------------------
 
     // 1. Buat record diskusi baru
     const newDiscussion = await Discussion.create({ 
@@ -51,7 +64,7 @@ export const createDiscussion = async (req, res) => {
       owner_id: userId // Simpan ID si pembuat
     });
 
-    // 2. OTOMATIS GABUNG: Buat record di tabel DiscussionMember [cite: 1841, 1845]
+    // 2. OTOMATIS GABUNG: Buat record di tabel DiscussionMember
     await DiscussionMember.create({
       discussion_id: newDiscussion.id,
       user_id: userId
