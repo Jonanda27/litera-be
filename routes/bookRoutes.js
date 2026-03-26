@@ -19,7 +19,8 @@ import {
   getChatHistory,
   getDiscussionHistory,
   getBookById,
-  getMyBooks
+  getMyBooks,
+  saveCovers
 } from "../controllers/bookController.js";
 
 import { 
@@ -134,6 +135,9 @@ router.post("/save-comment", verifyToken, saveComment);
 router.post("/delete-comment", verifyToken, deleteComment);
 router.post("/save-chapter-version", verifyToken, saveChapterVersion);
 router.post("/", verifyToken, createBook);
+
+//COVER
+router.post('/save-covers', verifyToken, saveCovers);
 
 //QUICK IDEA
 router.post("/quick-ideas", verifyToken, addQuickIdea);
