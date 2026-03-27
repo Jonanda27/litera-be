@@ -23,7 +23,8 @@ import {
   saveCovers,
   savePDFToDB,
   downloadPDF,
-  getAllPublishedBooks
+  getAllPublishedBooks,
+  restoreVersion
 } from "../controllers/bookController.js";
 
 import { 
@@ -139,6 +140,7 @@ router.post("/save-comment", verifyToken, saveComment);
 router.post("/delete-comment", verifyToken, deleteComment);
 router.post("/save-chapter-version", verifyToken, saveChapterVersion);
 router.post("/", verifyToken, createBook);
+router.post("/restore-version", verifyToken, restoreVersion);
 
 //HTMLPDF
 // router.post('/generate-pdf', verifyToken, generatePDF);

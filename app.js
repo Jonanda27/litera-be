@@ -31,7 +31,12 @@ if (!fs.existsSync(uploadDir)) {
 
 // 2. Ekspos folder public/uploads agar bisa diakses via URL /uploads/...
 // Contoh: domain.com/uploads/pdf/buku.pdf -> mencari di public/uploads/pdf/buku.pdf
-app.use('/uploads', express.static(path.resolve(__dirname, 'public/uploads')));
+app.use('/uploads', (req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000"); // Sesuaikan dengan origin FE
+    res.header("Access-Control-Allow-Methods", "GET");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    next();
+}, express.static(path.resolve(__dirname, 'public/uploads')));
 
 // 3. Ekspos folder public utama (untuk file statis lainnya)
 app.use(express.static(path.resolve(__dirname, 'public')));
@@ -39,8 +44,13 @@ app.use(express.static(path.resolve(__dirname, 'public')));
 
 // Update CORS untuk mengizinkan domain produksi kamu di VPS
 app.use(cors({ 
+    // Izinkan origin frontend Anda
     origin: ["http://localhost:3000", "https://litera.geocitra.com"], 
-    credentials: true 
+    credentials: true,
+    // Tambahkan header 'Authorization' dan 'Accept' agar diizinkan oleh browser
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    // Penting untuk download file: Ekspos header Content-Disposition
+    exposedHeaders: ['Content-Disposition'] 
 }));
 
 // Naikkan limit ukuran payload JSON menjadi 50mb

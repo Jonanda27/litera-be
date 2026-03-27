@@ -10,6 +10,7 @@ export default (sequelize) => {
   NonFictionChapterContent.init({
     bookId: DataTypes.INTEGER,
     chapterNumber: DataTypes.STRING,
+    pageNumber: DataTypes.INTEGER, // TAMBAHAN
     content: DataTypes.TEXT,
     wordCount: DataTypes.INTEGER
   }, {

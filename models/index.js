@@ -148,6 +148,10 @@ db.NonFictionResearch.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.Book.hasMany(db.DailyWordCount, { foreignKey: 'bookId', as: 'dailyStats' });
 db.DailyWordCount.belongsTo(db.Book, { foreignKey: 'bookId' });
 
+// --- RELASI NON-FIKSI CONTENT ---
+db.Book.hasMany(db.NonFictionChapterContent, { foreignKey: 'bookId', as: 'nonFictionContents' });
+db.NonFictionChapterContent.belongsTo(db.Book, { foreignKey: 'bookId' });
+
 db.Chapter.hasMany(db.ChapterVersion, { foreignKey: 'chapterId', as: 'versions' });
 db.ChapterVersion.belongsTo(db.Chapter, { foreignKey: 'chapterId' });
 
@@ -175,15 +179,13 @@ db.ChapterContentSummary.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.User.hasMany(db.ActivityLog, { foreignKey: 'userId', as: 'activities' });
 db.ActivityLog.belongsTo(db.User, { foreignKey: 'userId', as: 'actor' });
 
-// --- RELASI LESSON & USERPROGRESS (Tambahkan ini) ---
+// --- RELASI LESSON & USERPROGRESS ---
 db.Lesson.hasMany(db.UserProgress, { foreignKey: 'lesson_id', as: 'userProgress' });
 db.UserProgress.belongsTo(db.Lesson, { foreignKey: 'lesson_id', as: 'lesson' });
 
-// --- RELASI USER & USERPROGRESS (Tambahkan jika belum ada) ---
 db.User.hasMany(db.UserProgress, { foreignKey: 'user_id', as: 'progressList' });
 db.UserProgress.belongsTo(db.User, { foreignKey: 'user_id' });
 
-// --- RELASI MODULE & LESSON (Opsional tapi penting) ---
 db.Module.hasMany(db.Lesson, { foreignKey: 'module_id', as: 'lessons' });
 db.Lesson.belongsTo(db.Module, { foreignKey: 'module_id' });
 
@@ -193,6 +195,7 @@ db.User.belongsToMany(db.Discussion, {
   foreignKey: 'user_id',
   as: 'joinedDiscussions'
 });
+
 db.Discussion.belongsToMany(db.User, {
   through: db.DiscussionMember,
   foreignKey: 'discussion_id',
@@ -206,15 +209,14 @@ db.Sequelize = Sequelize;
 // 3. Jalankan asosiasi otomatis
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate &&
-    // Tambahkan model baru ke daftar pengecualian jika tidak ingin diproses otomatis di loop ini
-    modelName !== 'ChatMessage' &&
+    // Jalankan associate untuk SEMUA model agar relasi internal di file model aktif,
+    // KECUALI model yang relasinya sudah didefinisikan secara manual di atas untuk mencegah duplikasi.
     modelName !== 'Mentor' &&
     modelName !== 'User' &&
     modelName !== 'Book' &&
+    modelName !== 'ChatMessage' &&
     modelName !== 'Discussion' &&
-    modelName !== 'NonFictionResearch' &&
-    modelName !== 'NonFictionChapterContent' &&
-    modelName !== 'ActivityLog') {
+    modelName !== 'ActivityLog') { // Tambahkan ActivityLog di sini
     db[modelName].associate(db);
   }
 });
