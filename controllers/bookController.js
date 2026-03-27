@@ -1,5 +1,8 @@
 import { sequelize, Book, QuickIdea, MoodBoard, Research, Outline, Chapter, Character, Setting, Timeline, Plot, ReviewComment, ChapterVersion, DailyWordCount, ChatMessage, User} from "../models/index.js";
 import { Op } from "sequelize";
+import path from 'path'
+import fs from 'fs';
+import puppeteer from "puppeteer";
 
 // 1. GET WEEKLY STATS & TOTAL PAGES
 export const getWeeklyStats = async (req, res) => {
@@ -583,5 +586,235 @@ export const saveCovers = async (req, res) => {
     } catch (error) {
         console.error("Error saveCovers:", error);
         res.status(500).json({ message: "Gagal menyimpan sampul", error: error.message });
+    }
+};
+
+// export const generatePDF = async (req, res) => {
+//     // bookId dikirim dari frontend agar kita tahu baris mana yang diupdate
+//     const { htmlContent, title, bookId } = req.body;
+    
+//     if (!htmlContent) return res.status(400).json({ success: false, message: "Konten kosong" });
+
+//     let browser;
+//     try {
+//         browser = await puppeteer.launch({
+//             headless: "new",
+//             args: [
+//                 '--no-sandbox',
+//                 '--disable-setuid-sandbox',
+//                 '--disable-dev-shm-usage',
+//                 '--disable-gpu',
+//                 '--font-render-hinting=none',
+//             ]
+//         });
+
+//         const page = await browser.newPage();
+//         await page.setDefaultNavigationTimeout(0);
+
+//         await page.setContent(htmlContent, { 
+//             waitUntil: 'domcontentloaded', 
+//             timeout: 0 
+//         });
+
+//         // Jeda untuk memastikan layout CSS selesai diaplikasikan
+//         await new Promise(resolve => setTimeout(resolve, 500));
+
+//         const pdfBuffer = await page.pdf({
+//             format: 'A4',
+//             printBackground: true,
+//             margin: { top: '0px', bottom: '0px', left: '0px', right: '0px' },
+//             preferCSSPageSize: true,
+//             timeout: 0 
+//         });
+
+//         await browser.close();
+
+//         // --- LOGIKA PENYIMPANAN KE DATABASE & STORAGE ---
+        
+//         const safeTitle = (title || "Karya").replace(/\s+/g, '_');
+//         const fileName = `Buku_${safeTitle}_${Date.now()}.pdf`;
+        
+//         // Sesuaikan dengan app.js (mengarah ke public/uploads/pdf)
+//         const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'pdf');
+        
+//         // Buat folder secara rekursif jika belum ada
+//         if (!fs.existsSync(uploadDir)) {
+//             fs.mkdirSync(uploadDir, { recursive: true });
+//         }
+
+//         const filePath = path.join(uploadDir, fileName);
+        
+//         // 1. Simpan file PDF secara fisik di server
+//         fs.writeFileSync(filePath, pdfBuffer);
+
+//         // 2. Simpan Path file ke Database
+//         const pdfUrl = `/uploads/pdf/${fileName}`;
+        
+//         if (bookId) {
+//             // Mengupdate kolom pdf_url pada tabel Books
+//             await Book.update(
+//                 { pdf_url: pdfUrl }, 
+//                 { where: { id: bookId } }
+//             );
+//         }
+
+//         // Kirim respon balik berupa JSON (bukan file blob)
+//         return res.status(200).json({
+//             success: true,
+//             message: "PDF berhasil disimpan ke database dan server",
+//             pdfUrl: pdfUrl
+//         });
+
+//     } catch (error) {
+//         if (browser) await browser.close();
+//         console.error("Puppeteer/Database Error:", error);
+//         return res.status(500).json({ 
+//             success: false, 
+//             message: "Gagal memproses dan menyimpan PDF", 
+//             error: error.message 
+//         });
+//     }
+// };
+
+// Helper untuk setting Puppeteer agar tidak duplikasi kode
+const generatePuppeteerBuffer = async (htmlContent) => {
+    let browser;
+    try {
+        browser = await puppeteer.launch({
+            headless: "new",
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage', // Menghindari crash di Docker/RAM terbatas
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu'
+            ]
+        });
+
+        const page = await browser.newPage();
+
+        // FAST TRACK: Blokir request yang tidak perlu (seperti analytics/external ads)
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            const resourceType = req.resourceType();
+            if (resourceType === 'stylesheet' || resourceType === 'font' || resourceType === 'image') {
+                req.continue();
+            } else if (resourceType === 'script') {
+                // Matikan JS jika HTML sudah matang (SSR), ini akan sangat mempercepat
+                req.abort(); 
+            } else {
+                req.continue();
+            }
+        });
+
+        // FAST TRACK: Gunakan 'domcontentloaded' agar tidak menunggu network idle 100%
+        // Ini mengurangi resiko timeout secara drastis
+        await page.setContent(htmlContent, { 
+            waitUntil: 'domcontentloaded', 
+            timeout: 60000 // Tingkatkan limit ke 60 detik jika naskah sangat panjang
+        });
+
+        // Tunggu sebentar saja jika ada font khusus
+        // await page.evaluateHandle('document.fonts.ready'); 
+
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
+            displayHeaderFooter: false,
+            preferCSSPageSize: true
+        });
+
+        return pdfBuffer;
+    } catch (error) {
+        console.error("Puppeteer Error:", error);
+        throw error;
+    } finally {
+        if (browser) await browser.close();
+    }
+};
+
+// API 1: HANYA DOWNLOAD KE DEVICE (Client side)
+export const downloadPDF = async (req, res) => {
+    const { htmlContent, title } = req.body;
+    try {
+        const pdfBuffer = await generatePuppeteerBuffer(htmlContent);
+        const fileName = `Download_${title || 'Buku'}.pdf`;
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename=${fileName}`,
+            'Content-Length': pdfBuffer.length,
+        });
+        res.send(pdfBuffer);
+    } catch (error) {
+        res.status(500).json({ message: "Gagal generate download", error: error.message });
+    }
+};
+
+// API 2: HANYA SIMPAN KE DATABASE (Server side)
+export const savePDFToDB = async (req, res) => {
+    const { htmlContent, title, bookId } = req.body;
+
+    try {
+        // 1. Generate Buffer dari Puppeteer
+        const pdfBuffer = await generatePuppeteerBuffer(htmlContent);
+        
+        const fileName = `Buku_${Date.now()}.pdf`;
+        
+        // 2. Tentukan Root Directory (Gunakan path.resolve agar lebih aman di Docker)
+        const uploadDir = path.resolve(process.cwd(), 'public', 'uploads', 'pdf');
+
+        // 3. LOGIKA AUTO-CREATE FOLDER
+        // recursive: true memastikan semua sub-folder (public -> uploads -> pdf) dibuat jika belum ada
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+            console.log(`✅ Folder created: ${uploadDir}`);
+        }
+
+        // 4. Simpan File ke Disk
+        const filePath = path.join(uploadDir, fileName);
+        fs.writeFileSync(filePath, pdfBuffer);
+
+        // 5. Simpan URL ke Database
+        const pdfUrl = `/uploads/pdf/${fileName}`;
+        const updated = await Book.update(
+            { pdf_url: pdfUrl }, 
+            { where: { id: bookId } }
+        );
+
+        if (updated[0] === 0) {
+            return res.status(404).json({ message: "Book ID tidak ditemukan" });
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: "PDF berhasil dibuat dan disimpan",
+            pdfUrl 
+        });
+
+    } catch (error) {
+        console.error("Error in savePDFToDB:", error);
+        res.status(500).json({ 
+            success: false,
+            message: "Gagal generate atau simpan ke DB", 
+            error: error.message 
+        });
+    }
+};
+
+export const getAllPublishedBooks = async (req, res) => {
+    try {
+        const books = await Book.findAll({
+            where: {
+                pdf_url: { [Op.ne]: null } // Hanya ambil yang sudah ada PDF-nya
+            },
+            attributes: ['id', 'title', 'pdf_url']
+        });
+        res.status(200).json(books);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 };
