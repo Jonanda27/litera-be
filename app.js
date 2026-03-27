@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from 'url';
 import authRoutes from "./routes/authRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js";
@@ -20,37 +21,48 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(express.static('public'));
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 
-// Naikkan limit ukuran payload JSON menjadi 50mb (bisa disesuaikan)
+// --- PENGATURAN STATIC FILES (DIPERBAIKI) ---
+// 1. Pastikan folder uploads tersedia secara fisik saat aplikasi jalan
+const uploadDir = path.resolve(__dirname, 'public/uploads/pdf');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// 2. Ekspos folder public/uploads agar bisa diakses via URL /uploads/...
+// Contoh: domain.com/uploads/pdf/buku.pdf -> mencari di public/uploads/pdf/buku.pdf
+app.use('/uploads', express.static(path.resolve(__dirname, 'public/uploads')));
+
+// 3. Ekspos folder public utama (untuk file statis lainnya)
+app.use(express.static(path.resolve(__dirname, 'public')));
+// --------------------------------------------
+
+// Update CORS untuk mengizinkan domain produksi kamu di VPS
+app.use(cors({ 
+    origin: ["http://localhost:3000", "https://litera.geocitra.com"], 
+    credentials: true 
+}));
+
+// Naikkan limit ukuran payload JSON menjadi 50mb
 app.use(express.json({ limit: "50mb" }));
-// Tambahkan juga ini untuk form urlencoded berjaga-jaga
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Gunakan Routes
+// --- DAFTAR ROUTES ---
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/live-session", liveSessionRoutes);
 
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+// Route ini tetap dipertahankan jika ada request yang spesifik ke /api/uploads
+app.use('/api/uploads', express.static(path.resolve(__dirname, 'public/uploads')));
 
-// Daftarkan route khusus admin dashboard
 app.use("/api/v1/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/exercise", adminExerciseRoutes);
-
-// Daftarkan route manajemen entitas (akan diproteksi di level router masing-masing)
 app.use("/api/users", userRoutes);
 app.use("/api/mentors", mentorRoutes);
-
-// [BARU] Daftarkan route khusus untuk log aktivitas
 app.use("/api/activity-logs", activityLogRoutes);
 app.use('/api/ai', aiRoutes);
-
 app.use("/api/exercise", ExerciseRoutes);
-
-app.use('/uploads', express.static('public/uploads'));
 
 app.get("/", (req, res) => res.send("Backend aktif ✅"));
 
