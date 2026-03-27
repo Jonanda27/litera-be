@@ -12,6 +12,7 @@ import mentorRoutes from "./routes/mentorRoutes.js";
 import adminExerciseRoutes from "./routes/adminRoutes.js";
 import ExerciseRoutes from "./routes/exerciseRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import livekitRoutes from "./routes/livekit.js";
 
 // [BARU] Import router log aktivitas
 import activityLogRoutes from "./routes/activityLogRoutes.js";
@@ -35,6 +36,7 @@ app.use("/api/meetings", meetingRoutes);
 app.use("/api/live-session", liveSessionRoutes);
 
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/api/livekit", livekitRoutes);
 
 // Daftarkan route khusus admin dashboard
 app.use("/api/v1/admin/dashboard", adminDashboardRoutes);
