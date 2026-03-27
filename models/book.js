@@ -4,14 +4,10 @@ import { Model, DataTypes } from 'sequelize';
 export default (sequelize) => {
   class Book extends Model {
     static associate(models) {
-      // Menghubungkan buku dengan user (author)
       this.belongsTo(models.User, {
         foreignKey: 'userId',
         as: 'user' 
       });
-
-      // Menambahkan kembali asosiasi lain jika ada di kode asli Anda
-      // Contoh: this.hasMany(models.Outline, { foreignKey: 'bookId' });
     }
   }
 
@@ -28,20 +24,24 @@ export default (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    // --- BAGIAN BARU: PENYIMPANAN COVER ---
+    // --- TAMBAHKAN pdf_url DI SINI ---
+    pdf_url: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    // ---------------------------------
     coverFront: {
-      type: DataTypes.TEXT('long'), // Menggunakan TEXT('long') agar muat base64 yang besar
+      type: DataTypes.TEXT('long'), 
       allowNull: true
     },
     coverBack: {
       type: DataTypes.TEXT('long'),
       allowNull: true
     }
-    // --------------------------------------
   }, {
     sequelize,
     modelName: 'Book',
-    tableName: 'Books', // Memastikan tabel bernama 'Books' sesuai migration
+    tableName: 'Books', 
   });
 
   return Book;

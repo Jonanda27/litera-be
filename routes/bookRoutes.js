@@ -20,7 +20,10 @@ import {
   getDiscussionHistory,
   getBookById,
   getMyBooks,
-  saveCovers
+  saveCovers,
+  savePDFToDB,
+  downloadPDF,
+  getAllPublishedBooks
 } from "../controllers/bookController.js";
 
 import { 
@@ -119,6 +122,7 @@ const router = express.Router();
 // --- 1. ROUTE STATIS (TANPA PARAMETER :) ---
 // Letakkan semua route GET statis di sini agar tidak bentrok dengan /:id
 router.get('/all', verifyToken, getAllBooks);
+router.get('/all-published', verifyToken, getAllPublishedBooks);
 router.get('/characters', verifyToken, getCharacters);
 router.get("/get-chapter", verifyToken, getChapterContent);
 router.get("/get-comments", verifyToken, getCommentsByChapter);
@@ -135,6 +139,11 @@ router.post("/save-comment", verifyToken, saveComment);
 router.post("/delete-comment", verifyToken, deleteComment);
 router.post("/save-chapter-version", verifyToken, saveChapterVersion);
 router.post("/", verifyToken, createBook);
+
+//HTMLPDF
+// router.post('/generate-pdf', verifyToken, generatePDF);
+router.post('/download-pdf', verifyToken, downloadPDF);
+router.post('/save-pdf-db', verifyToken, savePDFToDB);
 
 //COVER
 router.post('/save-covers', verifyToken, saveCovers);
