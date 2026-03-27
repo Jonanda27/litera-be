@@ -3,6 +3,7 @@ import http from "http";
 import { Server } from "socket.io";
 import app from "./app.js";
 import { ChatMessage, User } from "./models/index.js";
+import { initWebRTCSocket } from "./sockets/webrtc.socket.js";
 
 const PORT = process.env.PORT;
 const server = http.createServer(app);
@@ -86,6 +87,7 @@ io.on("connection", (socket) => {
 
     io.to(discussionId).emit("online_users_list", usersInRoom);
   };
+  initWebRTCSocket(io, socket);
 });
 
 server.listen(PORT, () => console.log(`🚀 Server aktif di port ${PORT}`));
