@@ -3,7 +3,6 @@ import http from "http";
 import { Server } from "socket.io";
 import app from "./app.js";
 import { ChatMessage, User } from "./models/index.js";
-import { initWebRTCSocket } from "./sockets/webrtc.socket.js";
 
 const PORT = process.env.PORT;
 const server = http.createServer(app);
@@ -41,7 +40,8 @@ io.on("connection", (socket) => {
       const savedMsg = await ChatMessage.create({
         discussionId: data.room,
         senderId: data.senderId,
-        message: data.text
+        message: data.text || "",
+        imageUrl: data.image
       });
 
       // Ambil data pengirim
@@ -50,7 +50,8 @@ io.on("connection", (socket) => {
       const payload = {
         id: savedMsg.id,
         text: savedMsg.message,
-        sender: sender ? sender.nama : "Anonim",
+        image: data.image,
+        sender: sender ? sender.nama : "User",
         senderId: data.senderId,
         room: data.room,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -85,8 +86,6 @@ io.on("connection", (socket) => {
 
     io.to(discussionId).emit("online_users_list", usersInRoom);
   };
-
-  initWebRTCSocket(io, socket);
 });
 
 server.listen(PORT, () => console.log(`🚀 Server aktif di port ${PORT}`));
