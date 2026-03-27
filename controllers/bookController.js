@@ -757,22 +757,51 @@ export const downloadPDF = async (req, res) => {
 // API 2: HANYA SIMPAN KE DATABASE (Server side)
 export const savePDFToDB = async (req, res) => {
     const { htmlContent, title, bookId } = req.body;
-    try {
-        const pdfBuffer = await generatePuppeteerBuffer(htmlContent);
-        const fileName = `Buku_${Date.now()}.pdf`;
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'pdf');
 
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    try {
+        // 1. Generate Buffer dari Puppeteer
+        const pdfBuffer = await generatePuppeteerBuffer(htmlContent);
         
+        const fileName = `Buku_${Date.now()}.pdf`;
+        
+        // 2. Tentukan Root Directory (Gunakan path.resolve agar lebih aman di Docker)
+        const uploadDir = path.resolve(process.cwd(), 'public', 'uploads', 'pdf');
+
+        // 3. LOGIKA AUTO-CREATE FOLDER
+        // recursive: true memastikan semua sub-folder (public -> uploads -> pdf) dibuat jika belum ada
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+            console.log(`✅ Folder created: ${uploadDir}`);
+        }
+
+        // 4. Simpan File ke Disk
         const filePath = path.join(uploadDir, fileName);
         fs.writeFileSync(filePath, pdfBuffer);
 
+        // 5. Simpan URL ke Database
         const pdfUrl = `/uploads/pdf/${fileName}`;
-        await Book.update({ pdf_url: pdfUrl }, { where: { id: bookId } });
+        const updated = await Book.update(
+            { pdf_url: pdfUrl }, 
+            { where: { id: bookId } }
+        );
 
-        res.status(200).json({ success: true, pdfUrl });
+        if (updated[0] === 0) {
+            return res.status(404).json({ message: "Book ID tidak ditemukan" });
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: "PDF berhasil dibuat dan disimpan",
+            pdfUrl 
+        });
+
     } catch (error) {
-        res.status(500).json({ message: "Gagal simpan ke DB", error: error.message });
+        console.error("Error in savePDFToDB:", error);
+        res.status(500).json({ 
+            success: false,
+            message: "Gagal generate atau simpan ke DB", 
+            error: error.message 
+        });
     }
 };
 
