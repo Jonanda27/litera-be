@@ -30,10 +30,11 @@ import nonFictionSourceModel from "./nonfictionsource.js";
 import chapterVersionModel from "./chapterversion.js";
 import reviewCommentModel from "./reviewcomment.js";
 import dailyWordCountModel from "./dailywordcount.js";
-import meetingModel from "./meeting.js"
+import meetingModel from "./meeting.js";
+import liveSessionModel from "./livesession.js";
 
 // --- TAMBAHAN UNTUK FITUR CHAT & DISKUSI ---
-import chatMessageModel from "./chatmessage.js"; 
+import chatMessageModel from "./chatmessage.js";
 import discussionModel from "./discussion.js";
 import nonFictionCaseStudyModel from "./nonfictioncasestudy.js";
 import quoteCollectionModel from "./quotecollection.js";
@@ -66,6 +67,7 @@ db.Project = projectModel(sequelize, DataTypes);
 db.UserProgress = userProgressModel(sequelize, DataTypes);
 db.Certificate = certificateModel(sequelize, DataTypes);
 db.Meeting = meetingModel(sequelize, DataTypes);
+db.LiveSession = liveSessionModel(sequelize, DataTypes);
 
 // --- Inisialisasi Model Penulisan Buku ---
 db.Book = bookModel(sequelize, DataTypes);
@@ -167,7 +169,7 @@ db.QuoteCollection.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.Book.hasMany(db.NonFictionChapterStructure, { foreignKey: 'bookId', as: 'chapterStructures' });
 db.NonFictionChapterStructure.belongsTo(db.Book, { foreignKey: 'bookId' });
 
-db.Book.hasMany(db.ChapterContentSummary, { foreignKey: 'bookId' }); 
+db.Book.hasMany(db.ChapterContentSummary, { foreignKey: 'bookId' });
 db.ChapterContentSummary.belongsTo(db.Book, { foreignKey: 'bookId' });
 
 db.User.hasMany(db.ActivityLog, { foreignKey: 'userId', as: 'activities' });
@@ -186,15 +188,15 @@ db.Module.hasMany(db.Lesson, { foreignKey: 'module_id', as: 'lessons' });
 db.Lesson.belongsTo(db.Module, { foreignKey: 'module_id' });
 
 
-db.User.belongsToMany(db.Discussion, { 
-  through: db.DiscussionMember, 
-  foreignKey: 'user_id', 
-  as: 'joinedDiscussions' 
+db.User.belongsToMany(db.Discussion, {
+  through: db.DiscussionMember,
+  foreignKey: 'user_id',
+  as: 'joinedDiscussions'
 });
-db.Discussion.belongsToMany(db.User, { 
-  through: db.DiscussionMember, 
-  foreignKey: 'discussion_id', 
-  as: 'members' 
+db.Discussion.belongsToMany(db.User, {
+  through: db.DiscussionMember,
+  foreignKey: 'discussion_id',
+  as: 'members'
 });
 
 // --- TAMBAHAN AGAR SERVICE BISA MEMBACA KONEKSI DAN TRANSACTION ---
@@ -203,16 +205,16 @@ db.Sequelize = Sequelize;
 
 // 3. Jalankan asosiasi otomatis
 Object.keys(db).forEach((modelName) => {
-  if (db[modelName].associate && 
-      // Tambahkan model baru ke daftar pengecualian jika tidak ingin diproses otomatis di loop ini
-      modelName !== 'ChatMessage' && 
-      modelName !== 'Mentor' &&
-      modelName !== 'User' && 
-      modelName !== 'Book' && 
-      modelName !== 'Discussion' &&
-      modelName !== 'NonFictionResearch' &&
-      modelName !== 'NonFictionChapterContent' &&
-      modelName !== 'ActivityLog') {
+  if (db[modelName].associate &&
+    // Tambahkan model baru ke daftar pengecualian jika tidak ingin diproses otomatis di loop ini
+    modelName !== 'ChatMessage' &&
+    modelName !== 'Mentor' &&
+    modelName !== 'User' &&
+    modelName !== 'Book' &&
+    modelName !== 'Discussion' &&
+    modelName !== 'NonFictionResearch' &&
+    modelName !== 'NonFictionChapterContent' &&
+    modelName !== 'ActivityLog') {
     db[modelName].associate(db);
   }
 });
@@ -220,12 +222,13 @@ Object.keys(db).forEach((modelName) => {
 export { sequelize, Sequelize, DataTypes };
 
 // 4. Export semua model
-export const { 
+export const {
   Mentor, Level, User, Module, Lesson, Project, UserProgress, Certificate,
-  Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea, 
+  Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea,
   Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount,
-  ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource, 
-  NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, DiscussionMember, NonFictionChapterContent, ChapterContentSummary, ActivityLog
+  ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource,
+  NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, LiveSession,
+  DiscussionMember, NonFictionChapterContent, ChapterContentSummary, ActivityLog
 } = db;
 
 export default db;
