@@ -24,15 +24,20 @@ export const initWebRTCSocket = (io, socket) => {
                 return userData ? { id: userData.id, name: userData.name } : { id, name: "Unknown" };
             });
 
-        // HANYA kirim daftar ke user yang baru join (dia akan jadi inisiator)
+        // HANYA kirim daftar ke user yang baru join
         socket.emit("video_room_users", existingUsers);
 
-        // Beri tahu partisipan lama bahwa ada member baru (agar mereka stand-by)
+        // Beritahu partisipan lain ada member baru masuk
         socket.to(`video_${roomId}`).emit("video_user_joined", { id: socket.id, name });
     });
 
     socket.on("send_chat_message", ({ roomId, message }) => {
         socket.to(`video_${roomId}`).emit("new_chat_message", message);
+    });
+
+    // 🔴 TAMBAHKAN EVENT INI AGAR RAISE HAND BISA DILIHAT ORANG LAIN
+    socket.on("toggle_raise_hand", ({ roomId, isRaised, name }) => {
+        socket.to(`video_${roomId}`).emit("user_toggled_hand", { userId: socket.id, isRaised, name });
     });
 
     socket.on("webrtc_offer", ({ target, offer, senderId }) => {
