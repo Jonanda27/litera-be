@@ -15,19 +15,23 @@ export const initWebRTCSocket = (io, socket) => {
         console.log(`🎥 ${name} join room: video_${roomId}`);
 
         const socketIdsInRoom = Array.from(io.sockets.adapter.rooms.get(`video_${roomId}`) || []);
-        const usersWithNames = socketIdsInRoom.map(id => {
-            const userData = videoUsers.get(id);
-            return userData ? { id: userData.id, name: userData.name } : { id, name: "Unknown" };
-        });
+        
+        // Hanya ambil daftar user lama, kecualikan yang baru join
+        const existingUsers = socketIdsInRoom
+            .filter(id => id !== socket.id) 
+            .map(id => {
+                const userData = videoUsers.get(id);
+                return userData ? { id: userData.id, name: userData.name } : { id, name: "Unknown" };
+            });
 
-        io.to(`video_${roomId}`).emit("video_room_users", usersWithNames);
+        // HANYA kirim daftar ke user yang baru join (dia akan jadi inisiator)
+        socket.emit("video_room_users", existingUsers);
+
+        // Beri tahu partisipan lama bahwa ada member baru (agar mereka stand-by)
         socket.to(`video_${roomId}`).emit("video_user_joined", { id: socket.id, name });
     });
 
-    // --- FITUR CHAT BACKEND ---
     socket.on("send_chat_message", ({ roomId, message }) => {
-        // Kirim ke semua orang di room tersebut KECUALI pengirim
-        // (Pengirim sudah menambahkan ke state lokalnya sendiri)
         socket.to(`video_${roomId}`).emit("new_chat_message", message);
     });
 
