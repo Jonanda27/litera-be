@@ -25,6 +25,7 @@ export default (sequelize) => {
     nama: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, unique: true, allowNull: false },
     password: { type: DataTypes.STRING, allowNull: false },
+    no_hp: { type: DataTypes.STRING, allowNull: true },
     level_saat_ini: DataTypes.STRING,
     persentase_progres: { type: DataTypes.FLOAT, defaultValue: 0 },
     // Penambahan atribut role sebagai resolusi entitas Admin

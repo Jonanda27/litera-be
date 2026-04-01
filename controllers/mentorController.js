@@ -1,7 +1,8 @@
 import MentorService from '../services/mentorService.js';
 import ActivityLoggerService from '../services/activityLoggerService.js';
-import { User, Mentor, Level, Module, Lesson, UserProgress } from "../models/index.js";
+import { User, Mentor, Level, Module, Lesson, UserProgress, MentorActivityLog } from "../models/index.js";
 import { sendWhatsAppMessage } from '../services/whatsappService.js';
+import MentorActivityService from "../services/MentorActivityService.js";
 
 
 class MentorController {
@@ -138,10 +139,11 @@ class MentorController {
         }
     }
 
-   static async getMyStudents(req, res) {
+  static async getMyStudents(req, res) {
     try {
         const mentorId = req.user.id;
 
+        // 1. Ambil referensi semua level beserta modulnya untuk referensi progress
         const allLevels = await Level.findAll({
             include: [{
                 model: Module,
@@ -150,29 +152,30 @@ class MentorController {
             order: [['id', 'ASC']]
         });
 
+        // 2. Ambil data siswa (User) yang memiliki mentor_id terkait
+        // Menyertakan no_hp untuk keperluan fitur WhatsApp di Frontend
         const students = await User.findAll({
             where: { mentor_id: mentorId },
-            attributes: ['id', 'nama', 'email', 'persentase_progres', 'updatedAt'],
+            attributes: ['id', 'nama', 'email', 'no_hp', 'persentase_progres', 'updatedAt'],
             order: [['nama', 'ASC']]
         });
 
+        // 3. Mapping data detail untuk kalkulasi status inaktif dan progress per modul
         const detailedStudents = await Promise.all(students.map(async (student) => {
             const detailedProgress = [];
             let currentActiveLevelName = "Belum Memulai";
 
-            // Kalkulasi Waktu Inaktif
+            // --- Kalkulasi Waktu Inaktif ---
             const lastUpdate = new Date(student.updatedAt);
             const now = new Date();
             const diffInMs = now.getTime() - lastUpdate.getTime();
             
-            // Konversi ke berbagai satuan
             const diffInSeconds = Math.floor(diffInMs / 1000);
             const diffInMinutes = Math.floor(diffInSeconds / 60);
             const diffInHours = Math.floor(diffInMinutes / 60);
             const diffInDays = Math.floor(diffInHours / 24);
 
             let inactivityLabel = "";
-            // Logika Label: Diubah agar menampilkan detik jika di bawah 1 menit (Untuk Testing)
             if (diffInDays > 0) {
                 inactivityLabel = `${diffInDays} hari ${diffInHours % 24} jam yang lalu`;
             } else if (diffInHours > 0) {
@@ -183,6 +186,7 @@ class MentorController {
                 inactivityLabel = `${diffInSeconds} detik yang lalu`;
             }
 
+            // --- Kalkulasi Progress Per Level & Modul ---
             for (const level of allLevels) {
                 const modulesInLevel = [];
                 for (const mod of level.Modules) {
@@ -199,6 +203,7 @@ class MentorController {
                         ? Math.round((completedLessons / totalLessons) * 100) 
                         : 0;
 
+                    // Tentukan level mana yang sedang aktif dikerjakan (progres < 100)
                     if (modPercent < 100 && currentActiveLevelName === "Belum Memulai") {
                         currentActiveLevelName = level.nama_level;
                     }
@@ -216,43 +221,62 @@ class MentorController {
                 });
             }
 
+            // Jika progres user sudah 100%, set ke level terakhir yang tersedia
             if (student.persentase_progres === 100) {
                 currentActiveLevelName = allLevels[allLevels.length - 1]?.nama_level || "Selesai";
             }
 
+            // Gabungkan data asli DB dengan hasil kalkulasi runtime
             return {
                 ...student.toJSON(),
                 currentLevelDisplay: currentActiveLevelName,
                 detailedProgress,
                 inactivityLabel,
                 daysInactive: diffInDays,
-                secondsInactive: diffInSeconds // Field baru untuk trigger testing
+                secondsInactive: diffInSeconds 
             };
         }));
 
+        // Response sukses tanpa menyimpan Activity Log mentor
         return res.status(200).json({
             success: true,
             data: detailedStudents
         });
+
     } catch (error) {
+        console.error("Error in getMyStudents:", error);
         return res.status(500).json({ success: false, error: error.message });
     }
 }
 
-   static async sendProgressReminder(req, res) {
+    /**
+     * Mengirimkan pengingat WhatsApp ke siswa dan mencatat log
+     */
+    static async sendProgressReminder(req, res) {
         try {
             const { studentId, message, type } = req.body;
+            const mentorId = req.user.id;
             
-            // PERBAIKAN: Cari data mentor dari DB karena req.user hanya berisi ID dan Role dari JWT
-            const mentor = await Mentor.findByPk(req.user.id);
+            // 1. Cari data mentor
+            const mentor = await Mentor.findByPk(mentorId);
             if (!mentor) return res.status(404).json({ message: "Data mentor tidak ditemukan" });
             
-            const mentorName = mentor.nama; // Sekarang mentorName pasti terdefinisi
+            const mentorName = mentor.nama;
 
+            // 2. Cari data siswa (User)
             const student = await User.findByPk(studentId);
             if (!student) return res.status(404).json({ message: "Siswa tidak ditemukan" });
 
-            // 1. Logika Notifikasi Website (Simpan ke ActivityLog) [cite: 1881]
+            const waNumber = student.no_hp; 
+            
+            if (!waNumber && (type === 'whatsapp' || type === 'both')) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "Siswa ini belum mendaftarkan nomor WhatsApp." 
+                });
+            }
+
+            // 3. Logika Notifikasi Website (Internal App)
             await ActivityLoggerService.logActivity({
                 userId: student.id,
                 action: 'RECEIVE_REMINDER',
@@ -264,35 +288,79 @@ class MentorController {
                 }
             });
 
-            // 2. Logika WhatsApp Latar Belakang (Direct Send) via Puppeteer
+            // 4. Logika WhatsApp Latar Belakang
             if (type === 'whatsapp' || type === 'both') {
-                
-                // --- HARDCODE NOMOR UNTUK TESTING ---
-                const waNumber = "088905298517"; 
-                // ------------------------------------
-
-                // Format Teks yang akan masuk ke WA Peserta
                 const textMessage = `*Pesan Bimbingan LITERA*\n\nHalo ${student.nama},\nMentor ${mentorName} mengirimkan pesan untuk Anda:\n\n_"${message}"_\n\nYuk, lanjutkan progres belajarmu di platform!`;
 
                 try {
-                    // PANGGIL SERVICE WHATSAPP
+                    // Kirim WA via Service
                     await sendWhatsAppMessage(waNumber, textMessage);
-                    console.log(`✅ WA berhasil dikirim ke ${waNumber} oleh ${mentorName}`);
+
+                    // --- LOG AKTIVITAS KHUSUS MENTOR ---
+                    await MentorActivityService.log(
+                        mentorId, 
+                        'WHATSAPP_REMINDER', 
+                        `Mengirim WhatsApp ke ${student.nama}. Pesan: "${message}"`,
+                        student.id
+                    );
+
+                    console.log(`✅ WA dikirim ke ${waNumber} untuk siswa ${student.nama}`);
                 } catch (waError) {
                     return res.status(500).json({ 
                         success: false, 
-                        message: "Gagal mengirim WhatsApp. Pastikan bot sudah di-scan QR.",
+                        message: "Gagal mengirim WhatsApp. Periksa bot server.",
                         error: waError.message 
                     });
                 }
             }
 
-            return res.status(200).json({ success: true, message: "Notifikasi berhasil dikirim langsung!" });
+            return res.status(200).json({ success: true, message: "Notifikasi berhasil diproses!" });
         } catch (error) {
-            console.error("Error Trigger WA:", error);
+            console.error("Error in sendProgressReminder:", error);
             return res.status(500).json({ error: error.message });
         }
     }
+
+    static async getMyMentorLogs(req, res) {
+        try {
+            // ID User didapat dari token (req.user.id)
+            // Karena relasi One-to-One di index.js menggunakan foreignKey 'id',
+            // maka userId ini sama dengan mentorId di tabel Mentors.
+            const userId = req.user.id; 
+
+            const logs = await MentorActivityLog.findAll({
+                where: { 
+                    mentor_id: userId 
+                },
+                include: [
+                    {
+                        model: User,
+                        as: 'targetUser', // Nama alias target user sesuai index.js
+                        attributes: ['id', 'nama']
+                    }
+                ],
+                order: [['createdAt', 'DESC']], // Terbaru di atas
+                limit: 50 // Batasi agar performa tetap cepat
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: "Notifikasi mentor berhasil diambil.",
+                data: logs
+            });
+
+        } catch (error) {
+            console.error("❌ Error Get My Mentor Logs:", error.message);
+            return res.status(500).json({
+                success: false,
+                message: "Terjadi kesalahan saat mengambil riwayat aktivitas.",
+                error: error.message
+            });
+        }
+    }
+
+    
+
 }
 
 export default MentorController;

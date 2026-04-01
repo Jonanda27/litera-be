@@ -60,7 +60,7 @@ app.use(cors({
     origin: ["http://localhost:3000", "https://litera.geocitra.com"], 
     credentials: true,
     // Tambahkan header 'Authorization' dan 'Accept' agar diizinkan oleh browser
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control'],
     // Penting untuk download file: Ekspos header Content-Disposition
     exposedHeaders: ['Content-Disposition'] 
 }));

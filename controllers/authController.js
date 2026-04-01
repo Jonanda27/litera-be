@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import MentorActivityService from '../services/MentorActivityService.js';
 import { User, UserProgress, Mentor, Module, Lesson } from "../models/index.js";
 import ActivityLoggerService from '../services/activityLoggerService.js';
 
@@ -12,8 +13,7 @@ export const login = async (req, res) => {
     let role;
 
     if (account) {
-      // PERBAIKAN: Ambil role langsung dari kolom 'role' di database
-      // Nilainya bisa 'admin' atau 'peserta' sesuai data di tabel Users
+      // Ambil role langsung dari kolom 'role' di database ('admin' atau 'peserta')
       role = account.role; 
     } else {
       // 2. Jika tidak ada di tabel User, cari di tabel Mentor
@@ -28,26 +28,36 @@ export const login = async (req, res) => {
       return res.status(404).json({ message: "Akun tidak ditemukan" });
     }
 
-    // 4. Bandingkan password yang diinput dengan password terenkripsi di database
+    // 4. Bandingkan password
     const isPasswordValid = await bcrypt.compare(password, account.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Password salah" });
     }
 
-    // 5. Buat JWT Token dengan role yang sudah dinamis
+    // 5. Buat JWT Token
     const token = jwt.sign(
       { id: account.id, role: role },
       process.env.JWT_SECRET || "rahasia_negara",
       { expiresIn: "24h" }
     );
 
-    // 6. [INJEKSI LOG] Catat keberhasilan Login ke Activity Log
-    await ActivityLoggerService.logActivity({
-      userId: account.id,
-      action: 'LOGIN',
-      resourceType: 'Auth',
-      details: { role: role }
-    });
+    // 6. [LOGIKA LOG TERPISAH]
+    if (role === 'mentor') {
+      // A. Jika MENTOR: Simpan ke MentorActivityLogs
+      await MentorActivityService.log(
+        account.id,
+        'LOGIN_SESSION',
+        `Mentor berhasil login ke sistem menggunakan perangkat ${req.headers['user-agent'] || 'Unknown'}`
+      );
+    } else {
+      // B. Jika PESERTA/ADMIN: Simpan ke ActivityLog umum
+      await ActivityLoggerService.logActivity({
+        userId: account.id,
+        action: 'LOGIN',
+        resourceType: 'Auth',
+        details: { role: role }
+      });
+    }
 
     // 7. Berikan response sukses ke Frontend
     res.status(200).json({
@@ -56,7 +66,7 @@ export const login = async (req, res) => {
       user: {
         id: account.id,
         email: account.email,
-        role: role // Mengirimkan role 'admin', 'peserta', atau 'mentor'
+        role: role 
       }
     });
   } catch (error) {
@@ -69,13 +79,21 @@ export const login = async (req, res) => {
 
 export const register = async (req, res) => {
   try {
-    // Tambahkan mentor_id ke destrukturisasi body
-    const { nama, email, password, confPassword, mentor_id } = req.body;
+    // 1. Destrukturisasi body (tambahkan no_hp)
+    const { nama, email, password, confPassword, mentor_id, no_hp } = req.body;
 
+    // 2. Validasi Password
     if (password !== confPassword) {
       return res.status(400).json({ message: "Password dan Confirm Password tidak cocok" });
     }
 
+    // 3. VALIDASI NO HP (Tambahkan di sini)
+    // Mengecek jika no_hp diisi, maka harus berupa angka
+    if (no_hp && !/^\d+$/.test(no_hp)) {
+      return res.status(400).json({ message: "Nomor HP harus berupa angka saja" });
+    }
+
+    // 4. Cek apakah email sudah terdaftar
     const userExists = await User.findOne({ where: { email } });
     if (userExists) {
       return res.status(400).json({ message: "Email sudah digunakan" });
@@ -84,17 +102,18 @@ export const register = async (req, res) => {
     const salt = await bcrypt.genSalt();
     const hashPassword = await bcrypt.hash(password, salt);
 
-    // Simpan mentor_id ke database
+    // 5. Simpan ke database
     const newUser = await User.create({
       nama: nama,
       email: email,
       password: hashPassword,
-      mentor_id: mentor_id || null, // Hubungkan dengan mentor yang dipilih
-      level_saat_ini: 'Pemula',
+      no_hp: no_hp || null, // Masukkan ke kolom database
+      mentor_id: mentor_id || null,
+      level_saat_ini: 'Level 1: Dasar-Dasar Literasi',
       persentase_progres: 0
     });
 
-    // Logging tetap sama ...
+    // Logging aktivitas
     await ActivityLoggerService.logActivity({
       userId: newUser.id,
       action: 'REGISTER_USER',
@@ -112,16 +131,15 @@ export const getMe = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 1. Cari data user beserta relasi mentornya
+    // 1. Cari data user dengan include (Join) ke tabel Mentor
     const user = await User.findOne({
       where: { id: userId },
-      // Mengambil atribut dasar termasuk 'role' yang baru ditambahkan
-      attributes: ['id', 'nama', 'email', 'level_saat_ini', 'role'],
+      attributes: ['id', 'nama', 'email', 'role'], // 'nama' di sini adalah dari tabel Users
       include: [
         {
           model: Mentor,
-          as: 'mentor', // Alias harus sesuai dengan yang didefinisikan di models/index.js
-          attributes: ['id', 'nama', 'spesialisasi', 'email']
+          as: 'mentor_profile', // Pastikan alias sesuai di models/index.js
+          attributes: ['id', 'nama', 'spesialisasi'] // 'nama' di sini adalah dari tabel Mentors
         }
       ]
     });
@@ -130,41 +148,47 @@ export const getMe = async (req, res) => {
       return res.status(404).json({ msg: "User tidak ditemukan" });
     }
 
-    // 2. Ambil semua modul untuk menghitung pemetaan progres
-    const allModules = await Module.findAll({ attributes: ['id'] });
-    const moduleProgressMap = {};
-
-    // 3. Iterasi setiap modul untuk menghitung persentase penyelesaian
-    for (const mod of allModules) {
-      // Hitung total pelajaran (Lesson) dalam satu modul
-      const totalInMod = await Lesson.count({ 
-        where: { module_id: mod.id } 
-      });
-
-      // Hitung pelajaran yang sudah diselesaikan oleh user ini di modul tersebut
-      const completedInMod = await UserProgress.count({
-        where: { 
-          user_id: userId, 
-          module_id: mod.id, 
-          status_selesai: true 
-        }
-      });
-
-      // Kalkulasi persentase (pembulatan)
-      moduleProgressMap[mod.id] = totalInMod > 0
-        ? Math.round((completedInMod / totalInMod) * 100)
-        : 0;
+    // 2. LOGIKA PENENTUAN ROLE & NAMA (OVERRIDE)
+    let finalRole = user.role;
+    let finalName = user.nama; // Default menggunakan nama dari tabel Users
+    
+    // Jika data ditemukan di tabel mentor
+    if (user.mentor_profile) {
+      finalRole = 'Mentor';
+      
+      // MENGAMBIL NAMA DARI TABEL MENTOR
+      // Jika kolom nama di tabel Mentor tidak kosong, gunakan nama tersebut
+      if (user.mentor_profile.nama) {
+        finalName = user.mentor_profile.nama;
+      }
     }
 
-    // 4. Kirim respons gabungan antara data profil dan map progres
+    // 3. Hitung Progres (Hanya untuk Peserta/User biasa)
+    let moduleProgressMap = {};
+    if (finalRole !== 'Admin' && finalRole !== 'Mentor') {
+      const allModules = await Module.findAll({ attributes: ['id'] });
+      for (const mod of allModules) {
+        const totalInMod = await Lesson.count({ where: { module_id: mod.id } });
+        const completedInMod = await UserProgress.count({
+          where: { user_id: userId, module_id: mod.id, status_selesai: true }
+        });
+        moduleProgressMap[mod.id] = totalInMod > 0 ? Math.round((completedInMod / totalInMod) * 100) : 0;
+      }
+    }
+
+    // 4. Kirim respons dengan data yang sudah divalidasi
     res.status(200).json({
-      ...user.toJSON(),
+      id: user.id,
+      nama: finalName, // Sekarang mengirim nama dari tabel Mentor jika dia adalah Mentor
+      email: user.email,
+      role: finalRole, 
+      mentorData: user.mentor_profile,
       moduleProgress: moduleProgressMap
     });
 
   } catch (error) {
     console.error("Error in getMe:", error.message);
-    res.status(500).json({ msg: error.message });
+    res.status(500).json({ msg: "Kesalahan server" });
   }
 };
 

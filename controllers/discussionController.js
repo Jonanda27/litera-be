@@ -1,5 +1,6 @@
 // litera-be/controllers/discussionController.js
 import { Discussion,User, DiscussionMember, PrivateChatMessage } from "../models/index.js";
+import MentorActivityService from '../services/MentorActivityService.js';
 
 // Ambil semua daftar grup diskusi
 export const getAllDiscussions = async (req, res) => {
@@ -237,12 +238,13 @@ export const savePrivateMessage = async (req, res) => {
   try {
     const { roomId, recipientId, recipientRole, message } = req.body;
     const senderId = req.user?.id;
+    const senderRole = req.user?.role; // Ambil role pengirim dari token
 
     if (!recipientId || !recipientRole || !message || !roomId) {
       return res.status(400).json({ success: false, message: "Data tidak lengkap" });
     }
 
-    // 1. Simpan Pesan Asli dari Peserta
+    // 1. Simpan Pesan Asli (Bisa dari Peserta ke Mentor, atau Mentor ke Peserta)
     const newMessage = await PrivateChatMessage.create({
       senderId,
       recipientId: parseInt(recipientId),
@@ -252,26 +254,45 @@ export const savePrivateMessage = async (req, res) => {
       isRead: false
     });
 
+    // --- [INJEKSI LOG MENTOR] ---
+    // Jika yang mengirim pesan adalah MENTOR, catat ke log aktivitas mentor
+    if (senderRole === 'mentor') {
+      await MentorActivityService.log(
+        senderId, 
+        'SEND_PRIVATE_CHAT', 
+        `Mentor mengirim pesan privat ke peserta (ID: ${recipientId}). Isi: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`,
+        parseInt(recipientId) // target_user_id (peserta)
+      );
+    }
+
     // 2. LOGIKA AUTO-REPLY (Hanya berjalan jika Peserta mengirim ke Mentor)
     let autoReplyMessage = null;
-    if (recipientRole === 'mentor') {
+    if (recipientRole === 'mentor' && senderRole !== 'mentor') {
       const lowerCaseMsg = message.toLowerCase();
       
-      // Cek apakah ada keyword yang cocok
+      // Cek apakah ada keyword yang cocok (BOT_RESPONSES diasumsikan sudah di-import/defined)
       const matchedRule = BOT_RESPONSES.find(rule => 
         rule.keywords.some(kw => lowerCaseMsg.includes(kw))
       );
 
       if (matchedRule) {
-        // Jika cocok, buat pesan balasan dari Sistem (Kita pinjam ID mentor sbg pengirim, tapi kita beri flag [SYSTEM])
+        // Jika cocok, buat pesan balasan dari Sistem atas nama mentor
         autoReplyMessage = await PrivateChatMessage.create({
-          senderId: parseInt(recipientId), // Mentor (Sistem bertindak atas nama mentor)
-          recipientId: senderId, // Balik ke peserta
+          senderId: parseInt(recipientId), // Mentor (ID penerima pesan awal)
+          recipientId: senderId, // Balik ke pengirim awal (peserta)
           recipientRole: 'peserta',
           roomId,
-          message: `[SYSTEM] ${matchedRule.answer}`, // Flag [SYSTEM] penting untuk parsing di Frontend
+          message: `[SYSTEM] ${matchedRule.answer}`,
           isRead: false
         });
+
+        // OPSIONAL: Catat juga bahwa sistem membalas otomatis atas nama mentor
+        await MentorActivityService.log(
+          parseInt(recipientId),
+          'AUTO_REPLY_SYSTEM',
+          `Sistem mengirim balasan otomatis [${matchedRule.keywords[0]}] kepada peserta (ID: ${senderId})`,
+          senderId
+        );
       }
     }
 
