@@ -69,7 +69,8 @@ export const login = async (req, res) => {
 
 export const register = async (req, res) => {
   try {
-    const { nama, email, password, confPassword } = req.body;
+    // Tambahkan mentor_id ke destrukturisasi body
+    const { nama, email, password, confPassword, mentor_id } = req.body;
 
     if (password !== confPassword) {
       return res.status(400).json({ message: "Password dan Confirm Password tidak cocok" });
@@ -83,16 +84,19 @@ export const register = async (req, res) => {
     const salt = await bcrypt.genSalt();
     const hashPassword = await bcrypt.hash(password, salt);
 
-    // Modifikasi Analis: Tampung instance yang dibuat untuk mendapatkan ID-nya
+    // Simpan mentor_id ke database
     const newUser = await User.create({
       nama: nama,
       email: email,
-      password: hashPassword
+      password: hashPassword,
+      mentor_id: mentor_id || null, // Hubungkan dengan mentor yang dipilih
+      level_saat_ini: 'Pemula',
+      persentase_progres: 0
     });
 
-    // [INJEKSI LOG] Catat pendaftaran mandiri oleh pengguna
+    // Logging tetap sama ...
     await ActivityLoggerService.logActivity({
-      userId: newUser.id, // Aktornya adalah dirinya sendiri
+      userId: newUser.id,
       action: 'REGISTER_USER',
       resourceType: 'Auth',
       resourceId: newUser.id
@@ -107,32 +111,59 @@ export const register = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const userId = req.user.id;
+
+    // 1. Cari data user beserta relasi mentornya
     const user = await User.findOne({
       where: { id: userId },
-      attributes: ['id', 'nama', 'email', 'level_saat_ini']
+      // Mengambil atribut dasar termasuk 'role' yang baru ditambahkan
+      attributes: ['id', 'nama', 'email', 'level_saat_ini', 'role'],
+      include: [
+        {
+          model: Mentor,
+          as: 'mentor', // Alias harus sesuai dengan yang didefinisikan di models/index.js
+          attributes: ['id', 'nama', 'spesialisasi', 'email']
+        }
+      ]
     });
 
-    if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
+    if (!user) {
+      return res.status(404).json({ msg: "User tidak ditemukan" });
+    }
 
+    // 2. Ambil semua modul untuk menghitung pemetaan progres
     const allModules = await Module.findAll({ attributes: ['id'] });
     const moduleProgressMap = {};
 
+    // 3. Iterasi setiap modul untuk menghitung persentase penyelesaian
     for (const mod of allModules) {
-      const totalInMod = await Lesson.count({ where: { module_id: mod.id } });
-      const completedInMod = await UserProgress.count({
-        where: { user_id: userId, module_id: mod.id, status_selesai: true }
+      // Hitung total pelajaran (Lesson) dalam satu modul
+      const totalInMod = await Lesson.count({ 
+        where: { module_id: mod.id } 
       });
 
+      // Hitung pelajaran yang sudah diselesaikan oleh user ini di modul tersebut
+      const completedInMod = await UserProgress.count({
+        where: { 
+          user_id: userId, 
+          module_id: mod.id, 
+          status_selesai: true 
+        }
+      });
+
+      // Kalkulasi persentase (pembulatan)
       moduleProgressMap[mod.id] = totalInMod > 0
         ? Math.round((completedInMod / totalInMod) * 100)
         : 0;
     }
 
+    // 4. Kirim respons gabungan antara data profil dan map progres
     res.status(200).json({
       ...user.toJSON(),
       moduleProgress: moduleProgressMap
     });
+
   } catch (error) {
+    console.error("Error in getMe:", error.message);
     res.status(500).json({ msg: error.message });
   }
 };
@@ -318,4 +349,25 @@ export const updateModuleProgress = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+// Contoh di controllers/mentorController.js
+export const getAllMentors = async (req, res) => {
+    try {
+        // Mengambil data mentor dengan atribut minimal [cite: 1890]
+        const mentors = await Mentor.findAll({
+            attributes: ['id', 'nama', 'spesialisasi'] 
+        });
+        
+        return res.status(200).json({
+            success: true,
+            data: mentors
+        });
+    } catch (error) {
+        // Penanganan error jika gagal mengambil data [cite: 107]
+        return res.status(500).json({ 
+            success: false, 
+            message: error.message 
+        });
+    }
 };

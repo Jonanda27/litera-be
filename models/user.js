@@ -29,7 +29,7 @@ export default (sequelize) => {
     persentase_progres: { type: DataTypes.FLOAT, defaultValue: 0 },
     // Penambahan atribut role sebagai resolusi entitas Admin
     role: {
-      type: DataTypes.ENUM('admin', 'peserta'),
+      type: DataTypes.ENUM('admin', 'peserta', 'mentor'), // Tambahkan 'mentor' di sini
       allowNull: false,
       defaultValue: 'peserta'
     }

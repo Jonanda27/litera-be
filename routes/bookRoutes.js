@@ -115,7 +115,7 @@ import {
 
 import { addVisionItem, getVisionBoard, updateVisionItem, deleteVisionItem } from "../controllers/moodboardController.js";
 import { createOutline, getOutlinesByBook, updateOutline, deleteOutline } from "../controllers/outlineController.js";
-import { getAllDiscussions, createDiscussion, getMyJoinedDiscussions, joinDiscussion, getDiscussionMembers  } from "../controllers/discussionController.js";
+import { getAllDiscussions, createDiscussion, getMyJoinedDiscussions, joinDiscussion, getDiscussionMembers, savePrivateMessage, getPrivateChatHistory  } from "../controllers/discussionController.js";
 import { verifyToken } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -246,6 +246,11 @@ router.post("/discussions/create", verifyToken, createDiscussion);
 router.post("/discussions/join", verifyToken, joinDiscussion);
 router.get("/discussions/my-joined", verifyToken, getMyJoinedDiscussions);
 router.get("/discussions/members/:discussionId", verifyToken, getDiscussionMembers);
+
+// Endpoint Riwayat Chat Privat
+router.get("/private-history/:roomId", verifyToken, getPrivateChatHistory);
+// Endpoint Simpan Chat (Jika diperlukan via REST)
+router.post("/private-send", verifyToken, savePrivateMessage);
 
 // --- 3. ROUTE DENGAN PARAMETER KHUSUS ---
 router.get("/pramenulis/:bookId", verifyToken, getPramenulis);

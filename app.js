@@ -29,6 +29,18 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// [TAMBAHAN UNTUK FIX ERROR ENOENT] Pastikan folder posters tersedia di public/uploads
+const uploadPosterDir = path.resolve(__dirname, 'public/uploads/posters');
+if (!fs.existsSync(uploadPosterDir)) {
+    fs.mkdirSync(uploadPosterDir, { recursive: true });
+}
+
+// [TAMBAHAN UNTUK FIX ERROR ENOENT] Pastikan folder posters tersedia di root project (berdasarkan path error)
+const rootPosterDir = path.resolve(__dirname, 'uploads/posters');
+if (!fs.existsSync(rootPosterDir)) {
+    fs.mkdirSync(rootPosterDir, { recursive: true });
+}
+
 // 2. Ekspos folder public/uploads agar bisa diakses via URL /uploads/...
 // Contoh: domain.com/uploads/pdf/buku.pdf -> mencari di public/uploads/pdf/buku.pdf
 app.use('/uploads', (req, res, next) => {

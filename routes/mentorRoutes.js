@@ -4,17 +4,21 @@ import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// 1. Route ini bisa diakses oleh Mentor (hanya butuh verifyToken)
+// Letakkan di paling atas agar tidak tertabrak parameter /:id
+router.get('/my-students', verifyToken, MentorController.getMyStudents);
+router.post('/send-reminder', verifyToken, MentorController.sendProgressReminder);
+
 /**
- * Menerapkan High Cohesion pada keamanan rute.
- * Penggunaan `router.use()` di tingkat atas memastikan semua endpoint 
- * di bawahnya secara otomatis terproteksi oleh middleware otentikasi & RBAC.
+ * 2. Proteksi Admin untuk route di bawahnya.
+ * Semua route setelah baris ini wajib verifyToken DAN isAdmin.
  */
 router.use(verifyToken, isAdmin);
 
-// Endpoint RESTful untuk entitas Mentor
+// Endpoint RESTful untuk manajemen entitas Mentor (Hanya Admin)
 router.get('/', MentorController.getAllMentors);
-router.get('/:id', MentorController.getMentorById);
 router.post('/', MentorController.createMentor);
+router.get('/:id', MentorController.getMentorById);
 router.put('/:id', MentorController.updateMentor);
 router.delete('/:id', MentorController.deleteMentor);
 

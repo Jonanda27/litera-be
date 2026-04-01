@@ -43,6 +43,7 @@ import discussionMemberModel from "./discussionmember.js";
 import nonFictionChapterContentModel from "./nonfictionchaptercontent.js";
 import chapterContentSummaryModel from "./chaptercontentsummary.js";
 import activityLogModel from "./activitylog.js";
+import privateChatMessageModel from "./privatechatmessage.js";
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -92,6 +93,7 @@ db.DiscussionMember = discussionMemberModel(sequelize, DataTypes);
 db.NonFictionChapterContent = nonFictionChapterContentModel(sequelize, DataTypes);
 db.ChapterContentSummary = chapterContentSummaryModel(sequelize, DataTypes);
 db.ActivityLog = activityLogModel(sequelize, DataTypes);
+db.PrivateChatMessage = privateChatMessageModel(sequelize, DataTypes);
 
 // --- Inisialisasi Model Revisi ---
 db.ChapterVersion = chapterVersionModel(sequelize, DataTypes);
@@ -105,6 +107,10 @@ db.Discussion = discussionModel(sequelize, DataTypes);
 // --- RELASI USER & MENTOR ---
 db.Mentor.hasMany(db.User, { foreignKey: 'mentor_id', as: 'students' });
 db.User.belongsTo(db.Mentor, { foreignKey: 'mentor_id', as: 'mentor' });
+
+// --- RELASI DISCUSSION & USER (OWNER) ---
+db.User.hasMany(db.Discussion, { foreignKey: 'owner_id', as: 'ownedDiscussions' });
+db.Discussion.belongsTo(db.User, { foreignKey: 'owner_id', as: 'owner' });
 
 db.Discussion.hasMany(db.ChatMessage, { foreignKey: 'discussionId', as: 'messages' });
 db.ChatMessage.belongsTo(db.Discussion, { foreignKey: 'discussionId' });
@@ -189,6 +195,9 @@ db.UserProgress.belongsTo(db.User, { foreignKey: 'user_id' });
 db.Module.hasMany(db.Lesson, { foreignKey: 'module_id', as: 'lessons' });
 db.Lesson.belongsTo(db.Module, { foreignKey: 'module_id' });
 
+db.User.hasMany(db.PrivateChatMessage, { foreignKey: 'senderId' });
+db.PrivateChatMessage.belongsTo(db.User, { foreignKey: 'senderId', as: 'sender' });
+
 
 db.User.belongsToMany(db.Discussion, {
   through: db.DiscussionMember,
@@ -209,14 +218,14 @@ db.Sequelize = Sequelize;
 // 3. Jalankan asosiasi otomatis
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate &&
-    // Jalankan associate untuk SEMUA model agar relasi internal di file model aktif,
-    // KECUALI model yang relasinya sudah didefinisikan secara manual di atas untuk mencegah duplikasi.
     modelName !== 'Mentor' &&
     modelName !== 'User' &&
     modelName !== 'Book' &&
     modelName !== 'ChatMessage' &&
     modelName !== 'Discussion' &&
-    modelName !== 'ActivityLog') { // Tambahkan ActivityLog di sini
+    modelName !== 'ActivityLog' &&
+    modelName !== 'PrivateChatMessage' // <--- TAMBAHKAN INI
+  ) { 
     db[modelName].associate(db);
   }
 });
@@ -230,7 +239,7 @@ export const {
   Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount,
   ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource,
   NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, LiveSession,
-  DiscussionMember, NonFictionChapterContent, ChapterContentSummary, ActivityLog
+  DiscussionMember, NonFictionChapterContent, ChapterContentSummary, ActivityLog, PrivateChatMessage
 } = db;
 
 export default db;

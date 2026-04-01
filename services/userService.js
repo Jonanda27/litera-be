@@ -69,16 +69,16 @@ class UserService {
                 await MentorService.validateAndReserveQuota(mentor_id, transaction);
             }
 
-            const newUser = await User.create({
+           const newUser = await User.create({
                 email,
                 password: hashedPassword,
                 nama,
-                role: role || 'peserta', // Fallback otomatis ke peserta
+                role: role || 'peserta', // Sekarang akan menerima 'mentor' dari payload
                 mentor_id: mentor_id || null,
-                level_saat_ini: 'Pemula',
+                level_saat_ini: role === 'mentor' ? null : 'Pemula', // Mentor mungkin tidak butuh level
                 persentase_progres: 0
             }, { transaction });
-
+            
             // Commit jika semua tahapan mutasi data sukses
             await transaction.commit();
 
