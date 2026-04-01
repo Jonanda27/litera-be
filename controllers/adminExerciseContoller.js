@@ -5,9 +5,12 @@ export const getLevelsWithStats = async (req, res) => {
     const levels = await Level.findAll({
       include: [{
         model: Module,
+        as: 'Modules', // Sequelize secara default menggunakan nama model jamak jika tidak di-set manual
         include: [{
           model: Lesson,
-          attributes: ['id', 'judul_materi', 'tipe_konten', 'url_konten'] // Ambil data lengkap materi
+          // WAJIB: Sesuai dengan "as: 'lessons'" di index.js Anda
+          as: 'lessons', 
+          attributes: ['id', 'judul_materi', 'tipe_konten', 'url_konten']
         }]
       }],
       order: [['id', 'ASC']]
@@ -16,16 +19,18 @@ export const getLevelsWithStats = async (req, res) => {
     const response = levels.map(level => ({
       id: level.id,
       nama_level: level.nama_level,
-      modules: level.Modules.map(mod => ({
+      // Akses data menggunakan alias yang tepat
+      modules: (level.Modules || []).map(mod => ({
         id: mod.id,
         nama_modul: mod.nama_modul,
-        // Kirim array lessons asli, bukan hanya angka
-        lessons: mod.Lessons 
+        // Di sini menggunakan mod.lessons (huruf kecil sesuai alias)
+        lessons: mod.lessons || [] 
       }))
     }));
 
     res.status(200).json({ success: true, data: response });
   } catch (error) {
+    console.error("Error in getLevelsWithStats:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 };

@@ -204,10 +204,14 @@ db.User.hasMany(db.UserProgress, { foreignKey: 'user_id', as: 'progressList' });
 db.UserProgress.belongsTo(db.User, { foreignKey: 'user_id' });
 
 db.Module.hasMany(db.Lesson, { foreignKey: 'module_id', as: 'lessons' });
-db.Lesson.belongsTo(db.Module, { foreignKey: 'module_id' });
+db.Lesson.belongsTo(db.Module, { foreignKey: 'module_id', as: 'module' });
 
 db.User.hasMany(db.PrivateChatMessage, { foreignKey: 'senderId' });
 db.PrivateChatMessage.belongsTo(db.User, { foreignKey: 'senderId', as: 'sender' });
+
+// Di models/index.js (jika belum ada)
+db.Level.hasMany(db.Module, { foreignKey: 'level_id', as: 'Modules' });
+db.Module.belongsTo(db.Level, { foreignKey: 'level_id' });
 
 db.User.belongsToMany(db.Discussion, {
   through: db.DiscussionMember,

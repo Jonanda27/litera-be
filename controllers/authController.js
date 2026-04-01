@@ -131,15 +131,15 @@ export const getMe = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 1. Cari data user dengan include (Join) ke tabel Mentor
+    // 1. Cari data user dengan include profil mentor
     const user = await User.findOne({
       where: { id: userId },
-      attributes: ['id', 'nama', 'email', 'role'], // 'nama' di sini adalah dari tabel Users
+      attributes: ['id', 'nama', 'email', 'role'],
       include: [
         {
           model: Mentor,
-          as: 'mentor_profile', // Pastikan alias sesuai di models/index.js
-          attributes: ['id', 'nama', 'spesialisasi'] // 'nama' di sini adalah dari tabel Mentors
+          as: 'mentor_profile',
+          attributes: ['id', 'nama', 'spesialisasi']
         }
       ]
     });
@@ -148,38 +148,55 @@ export const getMe = async (req, res) => {
       return res.status(404).json({ msg: "User tidak ditemukan" });
     }
 
-    // 2. LOGIKA PENENTUAN ROLE & NAMA (OVERRIDE)
+    // 2. Logika Penentuan Nama & Role
     let finalRole = user.role;
-    let finalName = user.nama; // Default menggunakan nama dari tabel Users
-    
-    // Jika data ditemukan di tabel mentor
+    let finalName = user.nama;
     if (user.mentor_profile) {
       finalRole = 'Mentor';
-      
-      // MENGAMBIL NAMA DARI TABEL MENTOR
-      // Jika kolom nama di tabel Mentor tidak kosong, gunakan nama tersebut
-      if (user.mentor_profile.nama) {
-        finalName = user.mentor_profile.nama;
-      }
+      finalName = user.mentor_profile.nama || user.nama;
     }
 
-    // 3. Hitung Progres (Hanya untuk Peserta/User biasa)
+    // 3. HITUNG PROGRES (PERBAIKAN ERROR ALIAS)
     let moduleProgressMap = {};
+    
     if (finalRole !== 'Admin' && finalRole !== 'Mentor') {
-      const allModules = await Module.findAll({ attributes: ['id'] });
+      // Ambil semua modul dan sertakan pelajaran (Lesson) menggunakan alias 'lessons'
+      const allModules = await Module.findAll({ 
+        attributes: ['id'],
+        include: [
+          {
+            model: Lesson,
+            as: 'lessons', // <--- INI KUNCINYA: Harus sama dengan di index.js
+            attributes: ['id']
+          }
+        ]
+      });
+
+      // Ambil progres user ini
+      const userCompletedProgress = await UserProgress.findAll({
+        where: { user_id: userId, status_selesai: true },
+        attributes: ['module_id', 'lesson_id']
+      });
+
       for (const mod of allModules) {
-        const totalInMod = await Lesson.count({ where: { module_id: mod.id } });
-        const completedInMod = await UserProgress.count({
-          where: { user_id: userId, module_id: mod.id, status_selesai: true }
-        });
-        moduleProgressMap[mod.id] = totalInMod > 0 ? Math.round((completedInMod / totalInMod) * 100) : 0;
+        // Karena sudah di-include, total lesson diambil dari array lessons
+        const totalInMod = mod.lessons ? mod.lessons.length : 0;
+
+        // Filter progres yang selesai di modul ini
+        const completedInMod = userCompletedProgress.filter(
+          p => p.module_id === mod.id
+        ).length;
+
+        moduleProgressMap[mod.id] = totalInMod > 0 
+          ? Math.round((completedInMod / totalInMod) * 100) 
+          : 0;
       }
     }
 
-    // 4. Kirim respons dengan data yang sudah divalidasi
+    // 4. Kirim respons
     res.status(200).json({
       id: user.id,
-      nama: finalName, // Sekarang mengirim nama dari tabel Mentor jika dia adalah Mentor
+      nama: finalName,
       email: user.email,
       role: finalRole, 
       mentorData: user.mentor_profile,
@@ -188,7 +205,7 @@ export const getMe = async (req, res) => {
 
   } catch (error) {
     console.error("Error in getMe:", error.message);
-    res.status(500).json({ msg: "Kesalahan server" });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
