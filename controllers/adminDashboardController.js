@@ -1,116 +1,112 @@
-import { User, Mentor, UserProgress, MentorActivityLog } from "../models/index.js";
+import * as adminDashboardService from "../services/adminDashboardService.js";
 
 /**
- * Mendapatkan ringkasan data untuk dashboard admin
+ * Controller: Mendapatkan ringkasan data untuk dashboard admin
  */
 export const getDashboardSummary = async (req, res) => {
     try {
-        // Mengeksekusi seluruh query agregasi secara paralel untuk efisiensi I/O
-        const [
-            totalPeserta,
-            totalMentor,
-            totalAktivitasModulSelesai,
-            rataRataProgres
-        ] = await Promise.all([
-            // 1. Menghitung total entitas User (Peserta)
-            User.count(),
+        const dashboardData = await adminDashboardService.getDashboardSummaryData();
 
-            // 2. Menghitung total entitas Mentor
-            Mentor.count(),
-
-            // 3. Menghitung total modul yang sudah berstatus selesai di seluruh sistem
-            UserProgress.count({
-                where: { status_selesai: true }
-            }),
-
-            // 4. Mengambil rata-rata progres seluruh user
-            User.aggregate('persentase_progres', 'avg')
-        ]);
-
-        // Menyusun respons dengan format JSON standar (JSend Format)
         res.status(200).json({
             status: "success",
             message: "Data agregasi dashboard berhasil diambil",
-            data: {
-                totalPeserta,
-                totalMentor,
-                totalAktivitasModulSelesai,
-                rataRataProgresSistem: rataRataProgres ? Math.round(rataRataProgres) : 0
-            }
+            data: dashboardData
         });
 
     } catch (error) {
         console.error("❌ Error Dashboard Summary Aggregation:", error.message);
         res.status(500).json({
             status: "error",
-            message: "Terjadi kesalahan internal saat menghitung data metrik sistem."
+            message: error.message || "Terjadi kesalahan internal saat menghitung data metrik sistem."
         });
     }
 };
 
 /**
- * Mendapatkan log aktivitas seluruh mentor (untuk Admin)
+ * Controller: Mendapatkan data visualisasi grafik untuk dashboard admin
+ * (Ditambahkan untuk memenuhi kebutuhan rute /charts)
  */
-export const getAllMentorLogs = async (req, res) => {
+export const getDashboardCharts = async (req, res) => {
     try {
-        // Mengambil riwayat aktivitas mentor dengan relasi ke Mentor dan User target
-        const logs = await MentorActivityLog.findAll({
-            include: [
-                {
-                    model: Mentor,
-                    as: 'mentor', // Pastikan alias sesuai dengan definisi di models/index.js
-                    attributes: ['id', 'nama', 'email']
-                },
-                {
-                    model: User,
-                    as: 'targetUser',
-                    attributes: ['id', 'nama']
-                }
-            ],
-            order: [['createdAt', 'DESC']],
-            limit: 100 // Membatasi output agar tidak terlalu berat
-        });
+        const chartsData = await adminDashboardService.getDashboardChartsData();
 
         return res.status(200).json({
             status: "success",
-            message: "Log aktivitas mentor berhasil diambil",
-            data: logs
+            message: "Data grafik dashboard berhasil diambil",
+            data: chartsData
         });
-        
+
     } catch (error) {
-        console.error("❌ Error Get All Mentor Logs:", error.message);
-        return res.status(500).json({ 
-            status: "error", 
-            message: "Terjadi kesalahan saat mengambil data log aktivitas.",
-            error: error.message 
+        console.error("❌ Error Dashboard Charts:", error.message);
+        return res.status(500).json({
+            status: "error",
+            message: error.message || "Terjadi kesalahan internal saat menghitung data grafik."
         });
     }
 };
 
+/**
+ * Controller: Mendapatkan log aktivitas seluruh mentor (untuk Admin)
+ * Diperbarui dengan dukungan tangkapan Query String untuk Pagination
+ */
+export const getAllMentorLogs = async (req, res) => {
+    try {
+        // Mengambil parameter pagination dari query string klien, atau gunakan nilai default
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 100;
+
+        const logsData = await adminDashboardService.getAllMentorLogsData(page, limit);
+
+        return res.status(200).json({
+            status: "success",
+            message: "Log aktivitas mentor berhasil diambil",
+            // logsData.rows berisi array datanya, logsData.count berisi total keseluruhan data di DB
+            data: logsData.rows,
+            meta: {
+                totalItems: logsData.count,
+                currentPage: page,
+                itemsPerPage: limit,
+                totalPages: Math.ceil(logsData.count / limit)
+            }
+        });
+
+    } catch (error) {
+        console.error("❌ Error Get All Mentor Logs:", error.message);
+        return res.status(500).json({
+            status: "error",
+            message: error.message || "Terjadi kesalahan saat mengambil data log aktivitas."
+        });
+    }
+};
+
+/**
+ * Controller: Mengirim notifikasi / menyimpan log aksi mentor
+ */
 export const sendMentorNotification = async (req, res) => {
     try {
         const { mentorId, action, description } = req.body;
 
-        // Jika mentorId ada, kirim ke individu. Jika null, anggap broadcast ke semua.
-        // Di sini kita simpan ke MentorActivityLog agar mentor bisa melihat di dashboard mereka
-        const newLog = await MentorActivityLog.create({
-            mentor_id: mentorId || null, // null jika untuk semua
-            action: action || "SYSTEM_NOTICE",
-            description: description,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+        const newLog = await adminDashboardService.createMentorNotificationData(
+            mentorId,
+            action,
+            description
+        );
 
         res.status(201).json({
             status: "success",
             message: "Notifikasi berhasil dikirim ke mentor.",
             data: newLog
         });
+
     } catch (error) {
         console.error("❌ Error Send Notification:", error.message);
-        res.status(500).json({
+
+        // Membedakan HTTP Status Code antara kesalahan validasi (400) dan kesalahan server (500)
+        const statusCode = error.message.includes("wajib diisi") ? 400 : 500;
+
+        res.status(statusCode).json({
             status: "error",
-            message: "Gagal mengirim notifikasi."
+            message: error.message || "Gagal mengirim notifikasi."
         });
     }
 };
