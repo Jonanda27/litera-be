@@ -24,7 +24,8 @@ import {
   savePDFToDB,
   downloadPDF,
   getAllPublishedBooks,
-  restoreVersion
+  restoreVersion,
+  getPublicPublishedBooks
 } from "../controllers/bookController.js";
 
 import { 
@@ -124,6 +125,7 @@ const router = express.Router();
 // Letakkan semua route GET statis di sini agar tidak bentrok dengan /:id
 router.get('/all', verifyToken, getAllBooks);
 router.get('/all-published', verifyToken, getAllPublishedBooks);
+router.get('/public', getPublicPublishedBooks);
 router.get('/characters', verifyToken, getCharacters);
 router.get("/get-chapter", verifyToken, getChapterContent);
 router.get("/get-comments", verifyToken, getCommentsByChapter);

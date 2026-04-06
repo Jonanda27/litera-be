@@ -855,6 +855,22 @@ export const getAllPublishedBooks = async (req, res) => {
     }
 };
 
+// Controller Baru Khusus Publik
+export const getPublicPublishedBooks = async (req, res) => {
+    try {
+        const books = await Book.findAll({
+            where: {
+                pdf_url: { [Op.ne]: null } // Hanya ambil yang sudah ada PDF-nya
+            },
+            attributes: ['id', 'title', 'pdf_url', 'category'] 
+        });
+        
+        res.status(200).json(books);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 export const restoreVersion = async (req, res) => {
     try {
         // Tambahkan isNonFiction dari request body
