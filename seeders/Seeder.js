@@ -61,7 +61,7 @@ export default {
       // Lesson ke-11: Evaluasi
       lessons.push({
         module_id: modId,
-        tipe_konten: 'bacaan',
+        tipe_konten: 'evaluasi',
         judul_materi: `Evaluasi ${prefix}`,
         url_konten: `https://example.com/evaluasi-${modId}`,
         createdAt: now,
