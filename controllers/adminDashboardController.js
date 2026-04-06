@@ -24,7 +24,6 @@ export const getDashboardSummary = async (req, res) => {
 
 /**
  * Controller: Mendapatkan data visualisasi grafik untuk dashboard admin
- * (Ditambahkan untuk memenuhi kebutuhan rute /charts)
  */
 export const getDashboardCharts = async (req, res) => {
     try {
@@ -47,20 +46,20 @@ export const getDashboardCharts = async (req, res) => {
 
 /**
  * Controller: Mendapatkan log aktivitas seluruh mentor (untuk Admin)
- * Diperbarui dengan dukungan tangkapan Query String untuk Pagination
  */
 export const getAllMentorLogs = async (req, res) => {
     try {
-        // Mengambil parameter pagination dari query string klien, atau gunakan nilai default
+        // PERUBAHAN P0: Menangkap parameter pagination dan filter dari query string
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 100;
+        const { action, startDate, endDate } = req.query;
 
-        const logsData = await adminDashboardService.getAllMentorLogsData(page, limit);
+        // Meneruskan seluruh parameter ke layer service
+        const logsData = await adminDashboardService.getAllMentorLogsData(page, limit, action, startDate, endDate);
 
         return res.status(200).json({
             status: "success",
             message: "Log aktivitas mentor berhasil diambil",
-            // logsData.rows berisi array datanya, logsData.count berisi total keseluruhan data di DB
             data: logsData.rows,
             meta: {
                 totalItems: logsData.count,
@@ -100,13 +99,23 @@ export const sendMentorNotification = async (req, res) => {
 
     } catch (error) {
         console.error("❌ Error Send Notification:", error.message);
-
-        // Membedakan HTTP Status Code antara kesalahan validasi (400) dan kesalahan server (500)
         const statusCode = error.message.includes("wajib diisi") ? 400 : 500;
 
         res.status(statusCode).json({
             status: "error",
             message: error.message || "Gagal mengirim notifikasi."
         });
+    }
+};
+
+export const getRetentionAnalysis = async (req, res) => {
+    try {
+        const data = await adminDashboardService.getRetentionData();
+        res.status(200).json({
+            status: "success",
+            data: data
+        });
+    } catch (error) {
+        res.status(500).json({ status: "error", message: error.message });
     }
 };

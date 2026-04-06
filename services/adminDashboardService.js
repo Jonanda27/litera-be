@@ -1,5 +1,5 @@
-import { sequelize, User, Mentor, UserProgress, MentorActivityLog, ChatMessage, LiveSession } from "../models/index.js";
-
+import { Op } from "sequelize"; // <--- TAMBAHKAN INI
+import { sequelize, User, Mentor, UserProgress, MentorActivityLog, ChatMessage, LiveSession, Module } from "../models/index.js";
 /**
  * Service: Mengambil data agregasi untuk dashboard admin
  */
@@ -112,4 +112,43 @@ export const getDashboardChartsData = async () => {
     } catch (error) {
         throw new Error(`DashboardChartsService Error: Gagal mengambil data grafik. Detail: ${error.message}`);
     }
+};
+
+export const getRetentionData = async () => {
+    const satuBulanLalu = new Date();
+    satuBulanLalu.setDate(satuBulanLalu.getDate() - 30);
+
+    // 1. Peserta Berisiko
+    const riskyUsers = await User.findAll({
+        where: {
+            role: 'peserta',
+            createdAt: { [Op.lt]: satuBulanLalu },
+            persentase_progres: { [Op.lt]: 20 }
+        },
+        attributes: ['id', 'nama', 'no_hp', 'persentase_progres', 'createdAt'],
+        limit: 5
+    });
+
+    // ... di dalam fungsi getRetentionData ...
+
+    // ... di dalam fungsi getRetentionData di adminDashboardService.js ...
+
+    const difficultModules = await UserProgress.findAll({
+        where: { status_selesai: false },
+        attributes: [
+            'module_id',
+            [sequelize.fn('COUNT', sequelize.col('UserProgress.user_id')), 'total_stuck']
+        ],
+        include: [{
+            model: Module,
+            as: 'module',
+            attributes: ['nama_modul'] // <--- UBAH DARI 'judul' KE 'nama_modul'
+        }],
+        // Pastikan referensi di GROUP BY sinkron dengan alias dan nama kolom asli
+        group: ['UserProgress.module_id', 'module.id', 'module.nama_modul'],
+        order: [[sequelize.literal('total_stuck'), 'DESC']],
+        limit: 5
+    });
+    // 
+    return { riskyUsers, difficultModules };
 };
