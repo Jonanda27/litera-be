@@ -13,7 +13,7 @@ export default {
       email: 'mentor2@geocitra.com',
       password: hashedPassword,
       spesialisasi: 'Literasi & Menulis',
-      kuota_peserta: 50,
+      kuota_peserta: 20,
       createdAt: now,
       updatedAt: now
     }], {});

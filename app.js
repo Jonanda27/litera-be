@@ -13,6 +13,7 @@ import mentorRoutes from "./routes/mentorRoutes.js";
 import adminExerciseRoutes from "./routes/adminRoutes.js";
 import ExerciseRoutes from "./routes/exerciseRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 // [BARU] Import router log aktivitas
 import activityLogRoutes from "./routes/activityLogRoutes.js";
@@ -74,6 +75,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/live-session", liveSessionRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Route ini tetap dipertahankan jika ada request yang spesifik ke /api/uploads
 app.use('/api/uploads', express.static(path.resolve(__dirname, 'public/uploads')));
