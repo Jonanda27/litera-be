@@ -3,14 +3,16 @@ import { Lesson, UserProgress } from '../models/index.js';
 export const getLessonDetailForUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id; // Ambil ID user dari token (verifyToken)
+        const userId = req.user.id; 
 
         const lesson = await Lesson.findByPk(id, {
             attributes: ['id', 'judul_materi', 'url_konten', 'tipe_konten', 'soal_evaluasi'],
             include: [{
                 model: UserProgress,
+                // PERBAIKAN: Gunakan alias yang sesuai dengan definisi di index.js
+                as: 'userProgress', 
                 where: { user_id: userId },
-                required: false, // Gunakan false agar materi tetap muncul meski user belum punya progress
+                required: false, 
                 attributes: ['status_selesai', 'jawaban_user', 'skor']
             }]
         });

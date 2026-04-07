@@ -16,8 +16,13 @@ export default {
         onDelete: 'CASCADE'
       },
       chapterNumber: {
-        type: Sequelize.STRING, // Mengambil chapternumber dari structure
+        type: Sequelize.STRING,
         allowNull: false
+      },
+      pageNumber: { // TAMBAHAN: Menyimpan nomor halaman
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 1
       },
       content: {
         type: Sequelize.TEXT,

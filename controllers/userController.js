@@ -1,5 +1,6 @@
 import UserService from '../services/userService.js';
 import ActivityLoggerService from '../services/activityLoggerService.js';
+import MentorService from '../services/mentorService.js';
 
 class UserController {
     /**
@@ -8,23 +9,54 @@ class UserController {
      */
     static async getAllUsers(req, res) {
         try {
+            const { role, mentor_id } = req.query;
             const filters = {};
-            if (req.query.role) filters.role = req.query.role;
-            if (req.query.mentor_id) filters.mentor_id = req.query.mentor_id;
+            if (role) filters.role = role;
+            if (mentor_id) filters.mentor_id = mentor_id;
 
-            const users = await UserService.getAllUsers(filters);
+            let users = [];
+            let mentors = [];
+
+            // Fetch data berdasarkan filter role
+            if (!role) {
+                [users, mentors] = await Promise.all([
+                    UserService.getAllUsers(filters),
+                    MentorService.getAllMentors()
+                ]);
+            } else if (role === 'mentor') {
+                mentors = await MentorService.getAllMentors();
+            } else {
+                users = await UserService.getAllUsers(filters);
+            }
+
+            // Normalisasi User: Tambahkan prefiks 'u-' untuk key React
+            const formattedUsers = users.map(u => {
+                const plain = typeof u.toJSON === 'function' ? u.toJSON() : u;
+                return { 
+                    ...plain, 
+                    originalId: plain.id, // ID asli untuk database
+                    id: `u-${plain.id}`    // ID unik untuk frontend
+                };
+            });
+
+            // Normalisasi Mentor: Tambahkan prefiks 'm-' dan role virtual
+            const formattedMentors = mentors.map(m => {
+                const plain = typeof m.toJSON === 'function' ? m.toJSON() : m;
+                return { 
+                    ...plain, 
+                    originalId: plain.id, 
+                    id: `m-${plain.id}`, 
+                    role: 'mentor' 
+                };
+            });
 
             return res.status(200).json({
                 success: true,
-                message: 'Data pengguna berhasil diambil.',
-                data: users
+                message: 'Data akun berhasil diambil.',
+                data: [...formattedUsers, ...formattedMentors]
             });
         } catch (error) {
-            return res.status(500).json({
-                success: false,
-                message: 'Terjadi kesalahan internal server.',
-                error: error.message
-            });
+            return res.status(500).json({ success: false, error: error.message });
         }
     }
 
@@ -54,27 +86,43 @@ class UserController {
      * Membuat entitas pengguna baru (Admin atau Peserta)
      * @route POST /api/users
      */
-    static async createUser(req, res) {
+   static async createUser(req, res) {
         try {
-            const newUser = await UserService.createUser(req.body);
+            const { role } = req.body;
+            let newData;
 
-            // [INJEKSI LOG] Pencatatan aktivitas pembuatan pengguna
+            // Logika Percabangan Tabel
+            if (role === 'mentor') {
+                // Jika role mentor, gunakan MentorService untuk simpan ke tabel Mentors
+                // MentorService.createMentor menerima { email, password, nama, spesialisasi, kuota_peserta }
+                newData = await MentorService.createMentor({
+                    ...req.body,
+                    nama: req.body.nama, // Mapping jika field di body berbeda
+                    spesialisasi: req.body.spesialisasi || "Umum"
+                });
+            } else {
+                // Jika role peserta atau admin, simpan ke tabel Users via UserService
+                newData = await UserService.createUser(req.body);
+            }
+
+            // [INJEKSI LOG] 
             await ActivityLoggerService.logActivity({
-                userId: req.user?.id || 'SYSTEM', // Mengambil ID dari JWT pembuat (misal: Admin)
+                userId: req.user?.id || 'SYSTEM',
                 action: 'CREATE',
-                resourceType: 'User',
-                resourceId: newUser.id,
-                details: { role: req.body.role, email: newUser.email }
+                resourceType: role === 'mentor' ? 'Mentor' : 'User',
+                resourceId: newData.id,
+                details: { role: role, email: newData.email, spesialisasi: req.body.spesialisasi }
             });
 
             return res.status(201).json({
                 success: true,
-                message: 'Pengguna berhasil didaftarkan.',
-                data: newUser
+                message: `${role === 'mentor' ? 'Mentor' : 'Pengguna'} berhasil didaftarkan.`,
+                data: newData
             });
         } catch (error) {
             const badRequestMessages = [
                 'Email sudah terdaftar dalam sistem.',
+                'Email sudah terdaftar sebagai Mentor.',
                 'Mentor yang dituju tidak valid.',
                 'Kapasitas kuota mentor ini sudah penuh.'
             ];

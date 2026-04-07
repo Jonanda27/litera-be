@@ -13,7 +13,7 @@ import mentorRoutes from "./routes/mentorRoutes.js";
 import adminExerciseRoutes from "./routes/adminRoutes.js";
 import ExerciseRoutes from "./routes/exerciseRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
-import livekitRoutes from "./routes/livekit.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 // [BARU] Import router log aktivitas
 import activityLogRoutes from "./routes/activityLogRoutes.js";
@@ -30,9 +30,26 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// [TAMBAHAN UNTUK FIX ERROR ENOENT] Pastikan folder posters tersedia di public/uploads
+const uploadPosterDir = path.resolve(__dirname, 'public/uploads/posters');
+if (!fs.existsSync(uploadPosterDir)) {
+    fs.mkdirSync(uploadPosterDir, { recursive: true });
+}
+
+// [TAMBAHAN UNTUK FIX ERROR ENOENT] Pastikan folder posters tersedia di root project (berdasarkan path error)
+const rootPosterDir = path.resolve(__dirname, 'uploads/posters');
+if (!fs.existsSync(rootPosterDir)) {
+    fs.mkdirSync(rootPosterDir, { recursive: true });
+}
+
 // 2. Ekspos folder public/uploads agar bisa diakses via URL /uploads/...
 // Contoh: domain.com/uploads/pdf/buku.pdf -> mencari di public/uploads/pdf/buku.pdf
-app.use('/uploads', express.static(path.resolve(__dirname, 'public/uploads')));
+app.use('/uploads', (req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000"); // Sesuaikan dengan origin FE
+    res.header("Access-Control-Allow-Methods", "GET");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    next();
+}, express.static(path.resolve(__dirname, 'public/uploads')));
 
 // 3. Ekspos folder public utama (untuk file statis lainnya)
 app.use(express.static(path.resolve(__dirname, 'public')));
@@ -40,8 +57,13 @@ app.use(express.static(path.resolve(__dirname, 'public')));
 
 // Update CORS untuk mengizinkan domain produksi kamu di VPS
 app.use(cors({
+    // Izinkan origin frontend Anda
     origin: ["http://localhost:3000", "https://litera.geocitra.com"],
-    credentials: true
+    credentials: true,
+    // Tambahkan header 'Authorization' dan 'Accept' agar diizinkan oleh browser
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control'],
+    // Penting untuk download file: Ekspos header Content-Disposition
+    exposedHeaders: ['Content-Disposition']
 }));
 
 // Naikkan limit ukuran payload JSON menjadi 50mb
@@ -53,6 +75,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/live-session", liveSessionRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Route ini tetap dipertahankan jika ada request yang spesifik ke /api/uploads
 app.use('/api/uploads', express.static(path.resolve(__dirname, 'public/uploads')));

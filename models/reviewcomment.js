@@ -4,8 +4,7 @@ import { Model } from 'sequelize';
 export default (sequelize, DataTypes) => {
   class ReviewComment extends Model {
     static associate(models) {
-      // Relasi: Komentar dimiliki oleh satu bab (Chapter)
-      this.belongsTo(models.Chapter, { foreignKey: 'chapterId' });
+      // Kita tidak menggunakan belongsTo yang kaku karena chapterId bisa merujuk ke dua tabel berbeda
     }
   }
 
@@ -16,28 +15,28 @@ export default (sequelize, DataTypes) => {
     },
     highlight_id: {
       type: DataTypes.STRING,
-      allowNull: false // ID untuk scrollToHighlight (ex: highlight-17123)
+      allowNull: false
     },
     selected_text: {
       type: DataTypes.TEXT,
-      allowNull: false // Teks yang ditandai user
+      allowNull: false
     },
     comment_text: {
       type: DataTypes.TEXT,
-      allowNull: true // Catatan tambahan (opsional)
+      allowNull: true
     },
     label: {
       type: DataTypes.STRING,
-      defaultValue: 'Cek Fakta' // Cek Fakta, Plot Hole, dll
+      defaultValue: 'Cek Fakta'
     },
     status: {
       type: DataTypes.STRING,
-      defaultValue: 'open' // open atau done
+      defaultValue: 'open'
     }
   }, {
     sequelize,
     modelName: 'ReviewComment',
-    tableName: 'Review_Comments', // Sesuaikan dengan nama di migrasi
+    tableName: 'Review_Comments',
   });
 
   return ReviewComment;

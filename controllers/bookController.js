@@ -1,4 +1,4 @@
-import { sequelize, Book, QuickIdea, MoodBoard, Research, Outline, Chapter, Character, Setting, Timeline, Plot, ReviewComment, ChapterVersion, DailyWordCount, ChatMessage, User} from "../models/index.js";
+import db, { sequelize,NonFictionChapterContent, Book, QuickIdea, MoodBoard, Research, Outline, Chapter, Character, Setting, Timeline, Plot, ReviewComment, ChapterVersion, DailyWordCount, ChatMessage, User} from "../models/index.js";
 import { Op } from "sequelize";
 import path from 'path'
 import fs from 'fs';
@@ -189,28 +189,34 @@ export const getChapterContent = async (req, res) => {
 // 5. SAVE CHAPTER VERSION
 export const saveChapterVersion = async (req, res) => {
     try {
-        const { chapterId } = req.body;
+        const { chapterId, isNonFiction } = req.body;
         if (!chapterId) return res.status(400).json({ message: "chapterId wajib disertakan" });
 
-        const chapter = await Chapter.findOne({
+        const modelTarget = isNonFiction ? db.NonFictionChapterContent : db.Chapter;
+
+        const chapter = await modelTarget.findOne({
             where: { id: chapterId },
-            include: [{ model: Book }]
+            include: [{ 
+                model: db.Book,
+                attributes: ['id', 'title'] // Pastikan mengambil judul untuk penamaan versi
+            }]
         });
 
-        if (!chapter) return res.status(404).json({ message: "Draf bab tidak ditemukan" });
+        if (!chapter) return res.status(404).json({ message: "Draf bab tidak ditemukan di database" });
 
-        const existingVersionsCount = await ChapterVersion.count({ where: { chapterId } });
-        const safeBookTitle = chapter.Book?.title?.replace(/\s+/g, '_').toLowerCase() || 'buku';
+        const existingVersionsCount = await db.ChapterVersion.count({ where: { chapterId } });
+        const bookTitle = chapter.Book?.title || 'buku';
+        const safeBookTitle = bookTitle.replace(/\s+/g, '_').toLowerCase();
         const versionName = `${safeBookTitle}_v${existingVersionsCount + 1}`;
 
-        const newVersion = await ChapterVersion.create({
+        const newVersion = await db.ChapterVersion.create({
             chapterId: chapter.id,
             version_name: versionName,
             content: chapter.content,
-            word_count: chapter.word_count || 0
+            word_count: isNonFiction ? (chapter.wordCount || 0) : (chapter.word_count || 0)
         });
 
-        return res.status(201).json({ message: `Berhasil menyimpan versi ${versionName}`, data: newVersion });
+        return res.status(201).json({ success: true, message: `Berhasil menyimpan versi ${versionName}`, data: newVersion });
     } catch (error) {
         res.status(500).json({ message: "Gagal menyimpan versi", error: error.message });
     }
@@ -233,24 +239,52 @@ export const getChapterVersions = async (req, res) => {
 };
 
 // 7. SAVE COMMENT
+// Akomodasi di Controller
 export const saveComment = async (req, res) => {
-    const t = await sequelize.transaction();
-    try {
-        const { chapterId, highlight_id, selected_text, comment_text, label, currentContent } = req.body;
-        if (!chapterId || !highlight_id) return res.status(400).json({ message: "Data tidak lengkap" });
+  const t = await sequelize.transaction();
+  try {
+    const { 
+      chapterId, 
+      highlight_id, 
+      selected_text, 
+      comment_text, 
+      label, 
+      currentContent, 
+      isNonFiction // Flag dari frontend
+    } = req.body;
 
-        const newComment = await ReviewComment.create({
-            chapterId, highlight_id, selected_text, comment_text, label, status: 'open'
-        }, { transaction: t });
+    // 1. Simpan Komentar (Tanpa peduli fiksi/non-fiksi karena ID hanya angka)
+    const newComment = await ReviewComment.create({
+      chapterId,
+      highlight_id,
+      selected_text,
+      comment_text,
+      label,
+      status: 'open'
+    }, { transaction: t });
 
-        await Chapter.update({ content: currentContent }, { where: { id: chapterId }, transaction: t });
-
-        await t.commit();
-        res.status(201).json({ message: "Komentar berhasil disimpan", data: newComment });
-    } catch (error) {
-        await t.rollback();
-        res.status(500).json({ message: "Gagal menyimpan komentar", error: error.message });
+    // 2. Update Konten Naskah (Agar span highlight tersimpan di HTML naskah)
+    if (isNonFiction) {
+      // Cari di tabel Non-Fiksi
+      await NonFictionChapterContent.update(
+        { content: currentContent },
+        { where: { id: chapterId }, transaction: t }
+      );
+    } else {
+      // Cari di tabel Fiksi
+      await Chapter.update(
+        { content: currentContent },
+        { where: { id: chapterId }, transaction: t }
+      );
     }
+
+    await t.commit();
+    res.status(201).json({ success: true, data: newComment });
+  } catch (error) {
+    await t.rollback();
+    console.error("Save Comment Error:", error);
+    res.status(500).json({ message: "Gagal menyimpan komentar", error: error.message });
+  }
 };
 
 // 8. GET COMMENTS BY CHAPTER
@@ -809,12 +843,103 @@ export const getAllPublishedBooks = async (req, res) => {
     try {
         const books = await Book.findAll({
             where: {
-                pdf_url: { [Op.ne]: null } // Hanya ambil yang sudah ada PDF-nya
+                pdf_url: { [Op.ne]: null } // Hanya ambil yang sudah ada PDF-nya [cite: 1976]
             },
-            attributes: ['id', 'title', 'pdf_url']
+            // Tambahkan 'category' ke dalam array attributes
+            attributes: ['id', 'title', 'pdf_url', 'category'] 
         });
+        
         res.status(200).json(books);
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+// Controller Baru Khusus Publik
+export const getPublicPublishedBooks = async (req, res) => {
+    try {
+        const books = await Book.findAll({
+            where: {
+                pdf_url: { [Op.ne]: null } // Hanya ambil yang sudah ada PDF-nya
+            },
+            attributes: ['id', 'title', 'pdf_url', 'category'] 
+        });
+        
+        res.status(200).json(books);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const restoreVersion = async (req, res) => {
+    try {
+        // Tambahkan isNonFiction dari request body
+        const { chapterId, versionId, isNonFiction } = req.body;
+
+        if (!chapterId || !versionId) {
+            return res.status(400).json({
+                success: false,
+                message: "Chapter ID dan Version ID wajib diisi."
+            });
+        }
+
+        // 1. Cari data versi naskah lama di tabel ChapterVersion
+        const version = await ChapterVersion.findOne({
+            where: { id: versionId, chapterId: chapterId }
+        });
+
+        if (!version) {
+            return res.status(404).json({
+                success: false,
+                message: "Versi naskah tidak ditemukan."
+            });
+        }
+
+        // 2. Update naskah utama berdasarkan kategori (Fiksi vs Non-Fiksi)
+        if (isNonFiction) {
+            // Update tabel Non-Fiksi [cite: 1815, 1867]
+            await NonFictionChapterContent.update(
+                { content: version.content },
+                { where: { id: chapterId } }
+            );
+        } else {
+            // Update tabel Fiksi [cite: 1792, 1834]
+            await Chapter.update(
+                { content: version.content },
+                { where: { id: chapterId } }
+            );
+        }
+
+        // 3. Catat Aktivitas ke ActivityLog [cite: 1830, 1885]
+        if (req.user) {
+            try {
+                await ActivityLog.create({
+                    userId: req.user.id,
+                    action: 'RESTORE',
+                    entityType: isNonFiction ? 'NonFictionChapterContent' : 'Chapter',
+                    entityId: chapterId,
+                    details: {
+                        version_name: version.version_name,
+                        restored_at: new Date(),
+                        is_non_fiction: !!isNonFiction
+                    }
+                });
+            } catch (logError) {
+                console.error('[Log Error] Gagal mencatat aktivitas:', logError.message);
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Naskah ${isNonFiction ? 'Non-Fiksi' : 'Fiksi'} berhasil dipulihkan ke versi: ${version.version_name}`
+        });
+
+    } catch (error) {
+        console.error('[BookController] Error restoring version:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan saat memulihkan naskah.',
+            error: error.message
+        });
     }
 };
