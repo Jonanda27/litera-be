@@ -43,6 +43,10 @@ import discussionMemberModel from "./discussionmember.js";
 import nonFictionChapterContentModel from "./nonfictionchaptercontent.js";
 import chapterContentSummaryModel from "./chaptercontentsummary.js";
 import activityLogModel from "./activitylog.js";
+import privateChatMessageModel from "./privatechatmessage.js";
+
+// --- TAMBAHAN KHUSUS LOG MENTOR ---
+import mentorActivityLogModel from "./mentorActivityLog.js";
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -69,7 +73,6 @@ db.Certificate = certificateModel(sequelize, DataTypes);
 db.Meeting = meetingModel(sequelize, DataTypes);
 db.LiveSession = liveSessionModel(sequelize, DataTypes);
 
-// --- Inisialisasi Model Penulisan Buku ---
 db.Book = bookModel(sequelize, DataTypes);
 db.Chapter = chapterModel(sequelize, DataTypes);
 db.Character = characterModel(sequelize, DataTypes);
@@ -92,19 +95,35 @@ db.DiscussionMember = discussionMemberModel(sequelize, DataTypes);
 db.NonFictionChapterContent = nonFictionChapterContentModel(sequelize, DataTypes);
 db.ChapterContentSummary = chapterContentSummaryModel(sequelize, DataTypes);
 db.ActivityLog = activityLogModel(sequelize, DataTypes);
-
-// --- Inisialisasi Model Revisi ---
+db.PrivateChatMessage = privateChatMessageModel(sequelize, DataTypes);
+db.MentorActivityLog = mentorActivityLogModel(sequelize, DataTypes);
 db.ChapterVersion = chapterVersionModel(sequelize, DataTypes);
 db.ReviewComment = reviewCommentModel(sequelize, DataTypes);
-
-// --- Inisialisasi Model Chat & Diskusi ---
 db.ChatMessage = chatMessageModel(sequelize, DataTypes);
 db.Discussion = discussionModel(sequelize, DataTypes);
 
 // 2. Definisi Relasi (Asosiasi) Secara Manual
+
 // --- RELASI USER & MENTOR ---
+// PENTING: Jika di DB kolomnya bukan user_id, kita gunakan 'id' (asumsi One-to-One ID sama)
+// Atau cek tabel Mentor Anda, jika ada kolom 'userId', ganti menjadi 'userId'
+db.User.hasOne(db.Mentor, { foreignKey: 'id', as: 'mentor_profile' });
+db.Mentor.belongsTo(db.User, { foreignKey: 'id', as: 'user' });
+
+// Relasi Siswa-Mentor
 db.Mentor.hasMany(db.User, { foreignKey: 'mentor_id', as: 'students' });
 db.User.belongsTo(db.Mentor, { foreignKey: 'mentor_id', as: 'mentor' });
+
+// --- RELASI MENTOR ACTIVITY LOG ---
+db.Mentor.hasMany(db.MentorActivityLog, { foreignKey: 'mentor_id', as: 'mentorActivities' });
+db.MentorActivityLog.belongsTo(db.Mentor, { foreignKey: 'mentor_id', as: 'mentor' }); 
+
+db.User.hasMany(db.MentorActivityLog, { foreignKey: 'target_user_id', as: 'targetedByMentor' });
+db.MentorActivityLog.belongsTo(db.User, { foreignKey: 'target_user_id', as: 'targetUser' });
+
+// --- RELASI DISCUSSION ---
+db.User.hasMany(db.Discussion, { foreignKey: 'owner_id', as: 'ownedDiscussions' });
+db.Discussion.belongsTo(db.User, { foreignKey: 'owner_id', as: 'owner' });
 
 db.Discussion.hasMany(db.ChatMessage, { foreignKey: 'discussionId', as: 'messages' });
 db.ChatMessage.belongsTo(db.Discussion, { foreignKey: 'discussionId' });
@@ -148,6 +167,9 @@ db.NonFictionResearch.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.Book.hasMany(db.DailyWordCount, { foreignKey: 'bookId', as: 'dailyStats' });
 db.DailyWordCount.belongsTo(db.Book, { foreignKey: 'bookId' });
 
+db.Book.hasMany(db.NonFictionChapterContent, { foreignKey: 'bookId', as: 'nonFictionContents' });
+db.NonFictionChapterContent.belongsTo(db.Book, { foreignKey: 'bookId' });
+
 db.Chapter.hasMany(db.ChapterVersion, { foreignKey: 'chapterId', as: 'versions' });
 db.ChapterVersion.belongsTo(db.Chapter, { foreignKey: 'chapterId' });
 
@@ -175,60 +197,61 @@ db.ChapterContentSummary.belongsTo(db.Book, { foreignKey: 'bookId' });
 db.User.hasMany(db.ActivityLog, { foreignKey: 'userId', as: 'activities' });
 db.ActivityLog.belongsTo(db.User, { foreignKey: 'userId', as: 'actor' });
 
-// --- RELASI LESSON & USERPROGRESS (Tambahkan ini) ---
 db.Lesson.hasMany(db.UserProgress, { foreignKey: 'lesson_id', as: 'userProgress' });
 db.UserProgress.belongsTo(db.Lesson, { foreignKey: 'lesson_id', as: 'lesson' });
 
-// --- RELASI USER & USERPROGRESS (Tambahkan jika belum ada) ---
 db.User.hasMany(db.UserProgress, { foreignKey: 'user_id', as: 'progressList' });
 db.UserProgress.belongsTo(db.User, { foreignKey: 'user_id' });
 
-// --- RELASI MODULE & LESSON (Opsional tapi penting) ---
 db.Module.hasMany(db.Lesson, { foreignKey: 'module_id', as: 'lessons' });
-db.Lesson.belongsTo(db.Module, { foreignKey: 'module_id' });
+db.Lesson.belongsTo(db.Module, { foreignKey: 'module_id', as: 'module' });
 
+db.User.hasMany(db.PrivateChatMessage, { foreignKey: 'senderId' });
+db.PrivateChatMessage.belongsTo(db.User, { foreignKey: 'senderId', as: 'sender' });
+
+// Di models/index.js (jika belum ada)
+db.Level.hasMany(db.Module, { foreignKey: 'level_id', as: 'Modules' });
+db.Module.belongsTo(db.Level, { foreignKey: 'level_id' });
 
 db.User.belongsToMany(db.Discussion, {
   through: db.DiscussionMember,
   foreignKey: 'user_id',
   as: 'joinedDiscussions'
 });
+
 db.Discussion.belongsToMany(db.User, {
   through: db.DiscussionMember,
   foreignKey: 'discussion_id',
   as: 'members'
 });
 
-// --- TAMBAHAN AGAR SERVICE BISA MEMBACA KONEKSI DAN TRANSACTION ---
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
 // 3. Jalankan asosiasi otomatis
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate &&
-    // Tambahkan model baru ke daftar pengecualian jika tidak ingin diproses otomatis di loop ini
-    modelName !== 'ChatMessage' &&
-    modelName !== 'Mentor' &&
-    modelName !== 'User' &&
-    modelName !== 'Book' &&
-    modelName !== 'Discussion' &&
-    modelName !== 'NonFictionResearch' &&
-    modelName !== 'NonFictionChapterContent' &&
-    modelName !== 'ActivityLog') {
+    ![
+      'Mentor', 'User', 'Book', 'ChatMessage', 'Discussion', 
+      'ActivityLog', 'PrivateChatMessage', 'MentorActivityLog', 
+      'Chapter', 'UserProgress', 'Lesson', 'Module'
+    ].includes(modelName)
+  ) { 
     db[modelName].associate(db);
   }
 });
 
 export { sequelize, Sequelize, DataTypes };
 
-// 4. Export semua model
+// 4. Export model
 export const {
   Mentor, Level, User, Module, Lesson, Project, UserProgress, Certificate,
   Book, Chapter, Character, Material, MoodBoard, Outline, Plot, QuickIdea,
   Research, Setting, Timeline, ChapterVersion, ReviewComment, DailyWordCount,
   ChatMessage, Discussion, NonFictionResearch, Glossary, NonFictionSource,
   NonFictionCaseStudy, QuoteCollection, NonFictionChapterStructure, Meeting, LiveSession,
-  DiscussionMember, NonFictionChapterContent, ChapterContentSummary, ActivityLog
+  DiscussionMember, NonFictionChapterContent, ChapterContentSummary, ActivityLog, PrivateChatMessage,
+  MentorActivityLog
 } = db;
 
 export default db;

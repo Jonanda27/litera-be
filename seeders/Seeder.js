@@ -13,7 +13,7 @@ export default {
       email: 'mentor2@geocitra.com',
       password: hashedPassword,
       spesialisasi: 'Literasi & Menulis',
-      kuota_peserta: 50,
+      kuota_peserta: 20,
       createdAt: now,
       updatedAt: now
     }], {});
@@ -61,7 +61,7 @@ export default {
       // Lesson ke-11: Evaluasi
       lessons.push({
         module_id: modId,
-        tipe_konten: 'bacaan',
+        tipe_konten: 'evaluasi',
         judul_materi: `Evaluasi ${prefix}`,
         url_konten: `https://example.com/evaluasi-${modId}`,
         createdAt: now,

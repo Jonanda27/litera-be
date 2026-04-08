@@ -1,12 +1,22 @@
 // litera-be/controllers/discussionController.js
-import { Discussion,User, DiscussionMember } from "../models/index.js";
+import { Discussion,User, DiscussionMember, PrivateChatMessage } from "../models/index.js";
+import MentorActivityService from '../services/MentorActivityService.js';
 
 // Ambil semua daftar grup diskusi
 export const getAllDiscussions = async (req, res) => {
   try {
     const discussions = await Discussion.findAll({
+      // Mengambil data dari tabel User tanpa profile_url
+      include: [
+        {
+          model: User,
+          as: 'owner', // Sesuai dengan alias yang didefinisikan di index.js
+          attributes: ['id', 'nama', 'email'], // Hanya mengambil id, nama, dan email
+        }
+      ],
       order: [['createdAt', 'DESC']]
     });
+
     res.status(200).json({ success: true, data: discussions });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -120,5 +130,181 @@ export const getDiscussionMembers = async (req, res) => {
     res.status(200).json({ success: true, data: discussion.members });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+export const getPrivateChatHistory = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const history = await PrivateChatMessage.findAll({
+      where: { roomId },
+      order: [['createdAt', 'ASC']],
+      include: [{ 
+        model: User, 
+        as: 'sender', 
+        attributes: ['id', 'nama'] 
+      }]
+    });
+
+    res.status(200).json({ success: true, data: history });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Menyimpan pesan baru ke database (Opsional jika ingin via HTTP POST)
+ */
+const BOT_RESPONSES = [
+  // --- GREETINGS & UMUM ---
+  {
+    keywords: ["halo", "hallo", "hai", "hei", "selamat pagi", "pagi", "siang", "sore", "malam", "assalamualaikum", "assalamu'alaikum"],
+    answer: "Halo! Selamat datang di ruang bimbingan. Ada yang bisa dibantu terkait progres menulismu hari ini? Jangan ragu untuk menceritakan idemu di sini ya!"
+  },
+  {
+    keywords: ["terima kasih", "makasih", "thanks", "tq", "thank you", "makasih banyak", "terimakasih"],
+    answer: "Sama-sama! Semangat terus ya nulisnya. Kalau nanti ada kendala lagi atau butuh feedback untuk naskahmu, langsung saja chat di sini. Saya akan dengan senang hati membantu!"
+  },
+  {
+    keywords: ["baik kak", "oke kak", "oke", "ok", "siap", "baiklah", "sip"],
+    answer: "Sip! Ditunggu kabar baik dari progres tulisanmu selanjutnya ya. Semangat!"
+  },
+
+  // --- ADMINISTRASI & PUBLIKASI ---
+  {
+    keywords: ["isbn", "cara daftar isbn", "buat isbn", "ngurus isbn"],
+    answer: "Untuk mendapatkan ISBN, Anda bisa mendaftar melalui penerbit resmi atau mengurusnya di Perpusnas jika menerbitkan secara mandiri (Self-Publishing). Ada yang ingin didiskusikan lebih spesifik terkait hal ini?"
+  },
+  {
+    keywords: ["plagiarisme", "cek plagiasi", "turnitin", "jiplak"],
+    answer: "Untuk menghindari plagiarisme, pastikan Anda menggunakan teknik parafrase dan selalu mencantumkan sumber di menu 'Daftar Pustaka'. Sistem dapat membantu mereview orisinalitas naskah Anda nanti."
+  },
+  {
+    keywords: ["cara nerbitin", "penerbit", "self publishing", "mayor", "terbit buku", "menerbitkan"],
+    answer: "Ada 2 jalur utama menerbitkan buku: Penerbit Mayor (gratis & diseleksi ketat) atau Self-Publishing (biaya mandiri & bebas atur). Fokus selesaikan draf pertamamu dulu yuk! Nanti kita bisa tentukan strategi publikasi yang paling pas buat karyamu."
+  },
+  {
+    keywords: ["cover", "sampul", "bikin cover", "desain cover", "ukuran cover"],
+    answer: "Cover itu ibarat wajah buku kamu. Kamu bisa mengumpulkan referensi gaya visual di 'Papan Visi', lalu mengunggah desain finalmu di menu 'Cover Buku'. Jika bingung soal konsep visualnya, silakan tanyakan di sini!"
+  },
+
+  // --- TEKNIS PENULISAN & EDITOR ---
+  {
+    keywords: ["daftar isi", "buat daftar isi", "table of content", "list bab"],
+    answer: "Daftar isi akan tersusun secara otomatis berdasarkan judul bab yang kamu buat di menu 'Outline'. Pastikan setiap bab sudah memiliki judul yang jelas agar saat proses Export, daftar isi naskahmu terlihat rapi dan profesional."
+  },
+  {
+    keywords: ["outline", "kerangka tulisan", "cara buat outline", "struktur bab"],
+    answer: "Outline sangat penting agar ceritamu tidak melebar! Mulailah dengan menuliskan ide pokok tiap bab di menu 'Experiment > Outline'."
+  },
+  {
+    keywords: ["typo", "ejaan", "puebi", "tata bahasa", "titik koma", "grammar", "huruf kapital"],
+    answer: "Jangan terlalu pusing dengan Typo saat menulis draf awal, biarkan idemu mengalir dulu! Nanti kamu bisa merapikannya secara instan menggunakan fitur 'Asisten Penulis (Cek Typo & Grammar)' di menu Tools."
+  },
+  {
+    keywords: ["font", "ukuran huruf", "margin", "format spasi", "kertas", "ukuran buku", "format naskah"],
+    answer: "Standar naskah buku umumnya menggunakan font Serif (seperti Times New Roman 12pt), spasi 1.5, dengan margin normal di kertas A4. Tapi tenang saja, saat kamu Export ke PDF melalui sistem kami, format naskahmu akan otomatis dirapikan!"
+  },
+  {
+    keywords: ["berapa halaman", "berapa kata", "jumlah halaman", "target kata", "panjang buku"],
+    answer: "Standar novel/fiksi biasanya 50.000 - 80.000 kata (sekitar 150-250 halaman). Untuk non-fiksi bisa 30.000 - 60.000 kata. Tetapkan 'Target Kata Harian' di editor penulisan agar kamu tetap konsisten. Jangan jadikan beban, tulis saja dulu!"
+  },
+
+  // --- KREATIFITAS & ALUR CERITA ---
+  {
+    keywords: ["ide menarik", "cari ide", "dapat ide", "ide tulisan", "bingung ide", "ide cerita", "inspirasi", "ide bagus", "ide buku"],
+    answer: "Ide menarik biasanya muncul dari pertanyaan 'Bagaimana jika...?' (What if?). Kamu bisa mulai mengamati hal-hal di sekitarmu, pengalaman pribadi, atau menggabungkan dua genre yang berbeda. Coba kumpulkan inspirasi visualmu di 'Papan Visi' atau catat spontan di 'Ide Cepat'."
+  },
+  {
+    keywords: ["stuck", "mentok", "writers block", "writer block", "bingung nulis", "hilang ide", "susah lanjut", "buntu"],
+    answer: "Wajar banget kok mengalami Writer's Block! 🧘‍♂️ Coba istirahat sejenak, atau buka fitur 'Papan Visi' dan 'Ide Cepat' untuk memancing inspirasi visualmu lagi. Kalau masih mentok, ceritain di sini bagian mana yang bikin jalan ceritanya buntu."
+  },
+  {
+    keywords: ["mulai darimana", "cara mulai", "ide pertama", "awalan buku", "cara buka cerita", "bab 1", "prolog"],
+    answer: "Mulai dari yang paling gampang: tuliskan ide kasarmu di menu 'Ide Cepat'! Untuk awalan bab, coba gunakan teknik 'Hook' (kejutan/pertanyaan di kalimat pertama) agar pembaca langsung penasaran."
+  },
+  {
+    keywords: ["bikin karakter", "tokoh utama", "penokohan", "karakteristik", "sifat tokoh", "nama tokoh", "antagonis"],
+    answer: "Karakter yang kuat itu harus punya Motivasi (apa yang dia mau?) dan Kelemahan (apa ketakutannya?). Coba lengkapi profil tokohmu secara detail di menu 'Profil Karakter' agar tokohmu terasa lebih hidup."
+  },
+  {
+    keywords: ["plot hole", "alur bolong", "konsistensi", "alur cerita", "konflik", "klimaks", "ending"],
+    answer: "Plot hole sering terjadi kalau kerangka ceritanya tidak tertata. Coba petakan urutan adeganmu di fitur 'Papan Plot' (Storyboard). Kamu juga bisa pakai fitur 'Scan AI Tokoh' di editor untuk mengecek konsistensi naskahmu secara otomatis lho!"
+  }
+];
+
+export const savePrivateMessage = async (req, res) => {
+  try {
+    const { roomId, recipientId, recipientRole, message } = req.body;
+    const senderId = req.user?.id;
+    const senderRole = req.user?.role; // Ambil role pengirim dari token
+
+    if (!recipientId || !recipientRole || !message || !roomId) {
+      return res.status(400).json({ success: false, message: "Data tidak lengkap" });
+    }
+
+    // 1. Simpan Pesan Asli (Bisa dari Peserta ke Mentor, atau Mentor ke Peserta)
+    const newMessage = await PrivateChatMessage.create({
+      senderId,
+      recipientId: parseInt(recipientId),
+      recipientRole, 
+      roomId,
+      message,
+      isRead: false
+    });
+
+    // --- [INJEKSI LOG MENTOR] ---
+    // Jika yang mengirim pesan adalah MENTOR, catat ke log aktivitas mentor
+    if (senderRole === 'mentor') {
+      await MentorActivityService.log(
+        senderId, 
+        'SEND_PRIVATE_CHAT', 
+        `Mentor mengirim pesan privat ke peserta (ID: ${recipientId}). Isi: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`,
+        parseInt(recipientId) // target_user_id (peserta)
+      );
+    }
+
+    // 2. LOGIKA AUTO-REPLY (Hanya berjalan jika Peserta mengirim ke Mentor)
+    let autoReplyMessage = null;
+    if (recipientRole === 'mentor' && senderRole !== 'mentor') {
+      const lowerCaseMsg = message.toLowerCase();
+      
+      // Cek apakah ada keyword yang cocok (BOT_RESPONSES diasumsikan sudah di-import/defined)
+      const matchedRule = BOT_RESPONSES.find(rule => 
+        rule.keywords.some(kw => lowerCaseMsg.includes(kw))
+      );
+
+      if (matchedRule) {
+        // Jika cocok, buat pesan balasan dari Sistem atas nama mentor
+        autoReplyMessage = await PrivateChatMessage.create({
+          senderId: parseInt(recipientId), // Mentor (ID penerima pesan awal)
+          recipientId: senderId, // Balik ke pengirim awal (peserta)
+          recipientRole: 'peserta',
+          roomId,
+          message: `[SYSTEM] ${matchedRule.answer}`,
+          isRead: false
+        });
+
+        // OPSIONAL: Catat juga bahwa sistem membalas otomatis atas nama mentor
+        await MentorActivityService.log(
+          parseInt(recipientId),
+          'AUTO_REPLY_SYSTEM',
+          `Sistem mengirim balasan otomatis [${matchedRule.keywords[0]}] kepada peserta (ID: ${senderId})`,
+          senderId
+        );
+      }
+    }
+
+    // Kembalikan 2 data: pesan user dan pesan bot (jika ada)
+    return res.status(201).json({ 
+      success: true, 
+      data: newMessage,
+      autoReply: autoReplyMessage
+    });
+    
+  } catch (error) {
+    console.error("Error Detail:", error);
+    return res.status(500).json({ success: false, message: "Gagal simpan chat privat: " + error.message });
   }
 };

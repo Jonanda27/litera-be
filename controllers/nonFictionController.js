@@ -1,5 +1,5 @@
 import { NonFictionResearch, Book, NonFictionChapterContent } from "../models/index.js";
-
+import { Op } from 'sequelize';
 // SAVE (CREATE or UPDATE)
 export const saveNonFictionResearch = async (req, res) => {
   try {
@@ -59,29 +59,58 @@ export const deleteNonFictionResearch = async (req, res) => {
 
 export const saveChapterContentnonfiksi = async (req, res) => {
   try {
-    const { bookId, chapterNumber, content, wordCount } = req.body;
-    // Cari draf lama, jika ada update, jika tidak ada buat baru
-    const [record, created] = await NonFictionChapterContent.findOrCreate({
-      where: { bookId, chapterNumber },
-      defaults: { content, wordCount }
+    const { bookId, chapterNumber, pages } = req.body;
+    // `pages` yang diharapkan dari frontend berupa array of objects:
+    // [{ pageNumber: 1, content: "...", wordCount: 150 }, { pageNumber: 2, content: "...", wordCount: 200 }]
+
+    if (!pages || !Array.isArray(pages)) {
+      return res.status(400).json({ message: "Format data pages tidak valid (harus array)" });
+    }
+
+    // 1. Simpan atau Update tiap halaman
+    for (const page of pages) {
+      const [record, created] = await NonFictionChapterContent.findOrCreate({
+        where: { bookId, chapterNumber, pageNumber: page.pageNumber },
+        defaults: { content: page.content, wordCount: page.wordCount || 0 }
+      });
+
+      if (!created) {
+        await record.update({ content: page.content, wordCount: page.wordCount || 0 });
+      }
+    }
+
+    // 2. Hapus halaman yang terhapus di frontend (Cleanup)
+    // Jika di DB ada halaman 1, 2, 3 tapi frontend cuma kirim halaman 1 & 2, maka halaman 3 dihapus.
+    const incomingPageNumbers = pages.map(p => p.pageNumber);
+    
+    await NonFictionChapterContent.destroy({
+      where: {
+        bookId,
+        chapterNumber,
+        pageNumber: {
+          [Op.notIn]: incomingPageNumbers
+        }
+      }
     });
 
-    if (!created) {
-      await record.update({ content, wordCount });
-    }
-    res.status(200).json({ success: true, message: "Konten bab berhasil disimpan" });
+    res.status(200).json({ success: true, message: "Seluruh halaman berhasil disimpan" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// Ambil Konten Bab Tertentu
+// AMBIL KONTEN (MULTI-PAGE)
 export const getChapterContentnonfiksi = async (req, res) => {
   try {
     const { bookId, chapterNumber } = req.query;
-    const data = await NonFictionChapterContent.findOne({
-      where: { bookId, chapterNumber }
+    
+    // Gunakan findAll dan urutkan berdasar pageNumber
+    const data = await NonFictionChapterContent.findAll({
+      where: { bookId, chapterNumber },
+      order: [['pageNumber', 'ASC']]
     });
+
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ message: error.message });

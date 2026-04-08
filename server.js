@@ -4,22 +4,37 @@ import { Server } from "socket.io";
 import app from "./app.js";
 import { ChatMessage, User } from "./models/index.js";
 import { initWebRTCSocket } from "./sockets/webrtc.socket.js";
+import { initMentoringSocket } from "./sockets/mentoring.socket.js";
+import { initWhatsApp } from "./services/whatsappService.js";
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000; // Pastikan ada fallback port
 const server = http.createServer(app);
 
+// Inisialisasi Socket.io
 const io = new Server(server, {
-  cors: { origin: PORT, methods: ["GET", "POST"], credentials: true }
+  cors: {
+    // PENTING: Origin biasanya adalah URL Frontend (contoh: http://localhost:3000)
+    // Jika process.env.PORT adalah nomor port, pastikan ini diatur dengan benar
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
+
+/**
+ * PENTING: Inisialisasi Namespace Privat di LUAR io.on("connection")
+ * Ini mendaftarkan jalur /mentoring-privat agar tidak "Invalid Namespace"
+ */
+initMentoringSocket(io);
 
 const onlineUsers = new Map();
 
+// Namespace Default (/) untuk Chat Umum/Diskusi
 io.on("connection", (socket) => {
-  console.log(`🔌 User terhubung: ${socket.id}`);
+  console.log(`🔌 User terhubung ke Global: ${socket.id}`);
 
   // 1. EVENT JOIN ROOM & TRACK ONLINE
   socket.on("join_room", (data) => {
-    // Menangani data baik berupa string ID atau Object {discussionId, user}
     const discussionId = typeof data === 'object' ? data.discussionId : data;
     const user = typeof data === 'object' ? data.user : null;
 
@@ -34,10 +49,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 2. EVENT SEND MESSAGE
+  // 2. EVENT SEND MESSAGE (Diskusi Umum)
   socket.on("send_message", async (data) => {
     try {
-      // Simpan ke database
       const savedMsg = await ChatMessage.create({
         discussionId: data.room,
         senderId: data.senderId,
@@ -45,7 +59,6 @@ io.on("connection", (socket) => {
         imageUrl: data.image
       });
 
-      // Ambil data pengirim
       const sender = await User.findByPk(data.senderId, { attributes: ['nama'] });
 
       const payload = {
@@ -58,7 +71,6 @@ io.on("connection", (socket) => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
-      // Pancarkan ke semua orang di room tersebut
       io.to(data.room).emit("receive_message", payload);
     } catch (error) {
       console.error("❌ Error socket:", error.message);
@@ -72,22 +84,23 @@ io.on("connection", (socket) => {
       const room = user.discussionId;
       onlineUsers.delete(socket.id);
       updateOnlineStatus(room);
-      console.log(`❌ ${user.nama} terputus`);
+      console.log(`❌ ${user.nama} terputus dari Global`);
     } else {
-      console.log("❌ User terputus");
+      console.log("❌ User terputus dari Global");
     }
   });
 
   // Helper online status
-  const updateOnlineStatus = (discussionId) => {
+  function updateOnlineStatus(discussionId) {
     const usersInRoom = Array.from(onlineUsers.values())
       .filter(u => u.discussionId === discussionId)
-      // Deduplikasi user ID yang sama (jika satu user buka banyak tab)
       .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
 
     io.to(discussionId).emit("online_users_list", usersInRoom);
-  };
+  }
   initWebRTCSocket(io, socket);
 });
 
 server.listen(PORT, () => console.log(`🚀 Server aktif di port ${PORT}`));
+
+initWhatsApp();
