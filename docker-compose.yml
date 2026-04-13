@@ -1,0 +1,21 @@
+services:
+  litera-be:
+    build: .
+    container_name: litera-be
+    restart: always
+    env_file: .env
+    ports:
+      - "3005:4000" # Host 3005 -> Container 4000
+    volumes:
+      - ./public:/app/public
+    networks:
+      - e-daily-report-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+networks:
+  e-daily-report-net:
+    external: true
+    name: e-daily-report_default

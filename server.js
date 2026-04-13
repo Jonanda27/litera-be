@@ -11,13 +11,14 @@ const server = http.createServer(app);
 
 // Inisialisasi Socket.io
 const io = new Server(server, {
-  cors: { 
-    // PENTING: Origin biasanya adalah URL Frontend (contoh: http://localhost:3000)
-    // Jika process.env.PORT adalah nomor port, pastikan ini diatur dengan benar
-    origin: "*", 
-    methods: ["GET", "POST"], 
-    credentials: true 
-  }
+  cors: {
+    origin: [
+      "http://localhost:3000",
+      "https://litera.geocitra.com"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
+  }  // <-- Correctly closing the cors object
 });
 
 /**
