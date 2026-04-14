@@ -62,7 +62,6 @@ export const createPaymentToken = async (req, res) => {
 
 // Fungsi Webhook (Notification)
 export const midtransWebhook = async (req, res) => {
-    const t = await sequelize.transaction(); // optional tapi recommended
 
     try {
         const notification = req.body;
@@ -79,8 +78,7 @@ export const midtransWebhook = async (req, res) => {
 
         // Cari transaksi di DB
         const transactionData = await db.Transaction.findOne({
-            where: { order_id: orderId },
-            transaction: t
+            where: { order_id: orderId }
         });
 
         if (!transactionData) {
@@ -114,7 +112,7 @@ export const midtransWebhook = async (req, res) => {
             status: newStatus,
             payment_type: paymentType,
             amount: grossAmount
-        }, { transaction: t });
+        });
 
         // ✅ AKTIFKAN USER JIKA BERHASIL
         if (newStatus === 'settlement') {
@@ -122,18 +120,14 @@ export const midtransWebhook = async (req, res) => {
                 { status: 'Aktif' },
                 {
                     where: { id: transactionData.user_id },
-                    transaction: t
                 }
             );
 
             console.log(`✅ User ${transactionData.user_id} AKTIF`);
         }
 
-        await t.commit();
-
         res.status(200).send('OK');
     } catch (error) {
-        await t.rollback();
         console.error("❌ Webhook Error:", error);
         res.status(500).send(error.message);
     }
