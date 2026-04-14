@@ -62,73 +62,55 @@ export const createPaymentToken = async (req, res) => {
 
 // Fungsi Webhook (Notification)
 export const midtransWebhook = async (req, res) => {
-
     try {
         const notification = req.body;
 
-        const statusResponse = await snap.transaction.notification(notification);
+        console.log("WEBHOOK MASUK:", notification);
 
-        const orderId = statusResponse.order_id;
-        const transactionStatus = statusResponse.transaction_status;
-        const fraudStatus = statusResponse.fraud_status;
-        const paymentType = statusResponse.payment_type;
-        const grossAmount = statusResponse.gross_amount;
+        const {
+            order_id,
+            transaction_status,
+            fraud_status
+        } = notification;
 
-        console.log(`📩 Notifikasi: ${orderId} | ${transactionStatus}`);
+        // Ambil userId dari order_id
+        const splitOrder = order_id.split("-");
+        const userId = splitOrder[splitOrder.length - 1];
 
-        // Cari transaksi di DB
-        const transactionData = await db.Transaction.findOne({
-            where: { order_id: orderId }
-        });
+        console.log(`Order ID: ${order_id}`);
+        console.log(`User ID: ${userId}`);
+        console.log(`Status: ${transaction_status}`);
 
-        if (!transactionData) {
-            console.warn(`⚠️ Transaksi tidak ditemukan: ${orderId}`);
-            await t.commit();
-            return res.status(200).send('OK');
-        }
+        // HANDLE STATUS
+        if (transaction_status === "capture") {
+            if (fraud_status === "accept") {
+                await User.update(
+                    { status: "aktif" }, // sesuaikan field
+                    { where: { id: userId } }
+                );
 
-        // Default status
-        let newStatus = 'pending';
-
-        // ✅ HANDLE STATUS MIDTRANS
-        if (transactionStatus === 'capture') {
-            if (fraudStatus === 'accept') {
-                newStatus = 'settlement';
+                console.log(`User ${userId} AKTIF (capture)`);
             }
-        } else if (transactionStatus === 'settlement') {
-            newStatus = 'settlement';
-        } else if (transactionStatus === 'pending') {
-            newStatus = 'pending';
-        } else if (transactionStatus === 'deny') {
-            newStatus = 'deny';
-        } else if (transactionStatus === 'expire') {
-            newStatus = 'expire';
-        } else if (transactionStatus === 'cancel') {
-            newStatus = 'cancel';
-        }
-
-        // ✅ UPDATE TRANSACTION
-        await transactionData.update({
-            status: newStatus,
-            payment_type: paymentType,
-            amount: grossAmount
-        });
-
-        // ✅ AKTIFKAN USER JIKA BERHASIL
-        if (newStatus === 'settlement') {
-            await db.User.update(
-                { status: 'Aktif' },
-                {
-                    where: { id: transactionData.user_id },
-                }
+        } else if (transaction_status === "settlement") {
+            await User.update(
+                { status: "Aktif" },
+                { where: { id: userId } }
             );
 
-            console.log(`✅ User ${transactionData.user_id} AKTIF`);
+            console.log(`User ${userId} AKTIF (settlement)`);
+        } else if (transaction_status === "pending") {
+            console.log(`Transaksi ${order_id} pending`);
+        } else if (
+            transaction_status === "deny" ||
+            transaction_status === "expire" ||
+            transaction_status === "cancel"
+        ) {
+            console.log(`Transaksi ${order_id} gagal`);
         }
 
-        res.status(200).send('OK');
+        res.status(200).send("OK");
     } catch (error) {
-        console.error("❌ Webhook Error:", error);
+        console.error("Webhook Error:", error);
         res.status(500).send(error.message);
     }
 };
