@@ -5,6 +5,7 @@ import app from "./app.js";
 import { ChatMessage, User } from "./models/index.js";
 import { initMentoringSocket } from "./sockets/mentoring.socket.js";
 import { initWhatsApp } from "./services/whatsappService.js";
+import { initWebRTCSocket } from "./sockets/webrtc.socket.js";
 
 const PORT = process.env.PORT || 5000; // Pastikan ada fallback port
 const server = http.createServer(app);
@@ -97,7 +98,8 @@ io.on("connection", (socket) => {
       .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
 
     io.to(discussionId).emit("online_users_list", usersInRoom);
-  }
+  };
+  initWebRTCSocket(io, socket);
 });
 
 server.listen(PORT, () => console.log(`🚀 Server aktif di port ${PORT}`));
