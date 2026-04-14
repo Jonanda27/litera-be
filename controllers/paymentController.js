@@ -6,8 +6,8 @@ export const checkout = async (req, res) => {
     try {
         const userId = req.user.id;
         const user = await User.findByPk(userId);
-        
-        const amount = 100000; 
+
+        const amount = 150000;
         const orderId = `LITERA-${Date.now()}-${userId}`;
 
         const token = await createTransactionToken(orderId, amount, user);
@@ -48,7 +48,7 @@ export const createPaymentToken = async (req, res) => {
         };
 
         const transaction = await snap.createTransaction(parameter);
-        
+
         res.status(200).json({
             status: "success",
             token: transaction.token,
@@ -64,7 +64,7 @@ export const createPaymentToken = async (req, res) => {
 export const midtransWebhook = async (req, res) => {
     try {
         const notification = req.body;
-        
+
         // Verifikasi notifikasi menggunakan snap instance
         const statusResponse = await snap.transaction.notification(notification);
         const orderId = statusResponse.order_id;

@@ -14,7 +14,7 @@ export const login = async (req, res) => {
 
     if (account) {
       // Ambil role langsung dari kolom 'role' di database ('admin' atau 'peserta')
-      role = account.role; 
+      role = account.role;
     } else {
       // 2. Jika tidak ada di tabel User, cari di tabel Mentor
       account = await Mentor.findOne({ where: { email } });
@@ -66,13 +66,14 @@ export const login = async (req, res) => {
       user: {
         id: account.id,
         email: account.email,
-        role: role 
+        role: role,
+        status: account.status
       }
     });
   } catch (error) {
-    res.status(500).json({ 
-      message: "Terjadi kesalahan server", 
-      error: error.message 
+    res.status(500).json({
+      message: "Terjadi kesalahan server",
+      error: error.message
     });
   }
 };
@@ -121,7 +122,14 @@ export const register = async (req, res) => {
       resourceId: newUser.id
     });
 
-    res.status(201).json({ message: "Registrasi Berhasil!" });
+    res.status(201).json({
+      message: "Registrasi Berhasil!",
+      user: {
+        id: newUser.id,
+        nama: nama,
+        email: email,
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: "Terjadi kesalahan server", error: error.message });
   }
@@ -167,9 +175,9 @@ export const getMe = async (req, res) => {
 
     // 3. HITUNG PROGRES (Hanya untuk Peserta)
     let moduleProgressMap = {};
-    
+
     if (finalRole !== 'Admin' && finalRole !== 'Mentor') {
-      const allModules = await Module.findAll({ 
+      const allModules = await Module.findAll({
         attributes: ['id'],
         include: [
           {
@@ -191,8 +199,8 @@ export const getMe = async (req, res) => {
           p => p.module_id === mod.id
         ).length;
 
-        moduleProgressMap[mod.id] = totalInMod > 0 
-          ? Math.round((completedInMod / totalInMod) * 100) 
+        moduleProgressMap[mod.id] = totalInMod > 0
+          ? Math.round((completedInMod / totalInMod) * 100)
           : 0;
       }
     }
@@ -204,7 +212,7 @@ export const getMe = async (req, res) => {
       id: user.id,
       nama: finalName,
       email: user.email,
-      role: finalRole, 
+      role: finalRole,
       mentorData: user.mentor || user.mentor_profile, // <--- OTOMATIS TERISI SESUAI ROLE
       moduleProgress: moduleProgressMap
     });
@@ -340,10 +348,10 @@ export const updateModuleProgress = async (req, res) => {
 
     if (progress) {
       // Jika sudah ada, update status, jawaban, dan skor
-      await progress.update({ 
-        status_selesai: true, 
+      await progress.update({
+        status_selesai: true,
         jawaban_user: jawaban_user || progress.jawaban_user,
-        skor: skor !== undefined ? skor : progress.skor 
+        skor: skor !== undefined ? skor : progress.skor
       });
     } else {
       // Jika belum ada, buat baru
@@ -378,9 +386,9 @@ export const updateModuleProgress = async (req, res) => {
       userId: userId,
       action: 'COMPLETE_LESSON',
       resourceType: 'UserProgress',
-      details: { 
-        moduleId: moduleId, 
-        lessonId: lessonId, 
+      details: {
+        moduleId: moduleId,
+        lessonId: lessonId,
         currentModulePercentage: percentage,
         score: skor // Tambahkan skor di log
       }
@@ -400,21 +408,21 @@ export const updateModuleProgress = async (req, res) => {
 
 // Contoh di controllers/mentorController.js
 export const getAllMentors = async (req, res) => {
-    try {
-        // Mengambil data mentor dengan atribut minimal [cite: 1890]
-        const mentors = await Mentor.findAll({
-            attributes: ['id', 'nama', 'spesialisasi'] 
-        });
-        
-        return res.status(200).json({
-            success: true,
-            data: mentors
-        });
-    } catch (error) {
-        // Penanganan error jika gagal mengambil data [cite: 107]
-        return res.status(500).json({ 
-            success: false, 
-            message: error.message 
-        });
-    }
+  try {
+    // Mengambil data mentor dengan atribut minimal [cite: 1890]
+    const mentors = await Mentor.findAll({
+      attributes: ['id', 'nama', 'spesialisasi']
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: mentors
+    });
+  } catch (error) {
+    // Penanganan error jika gagal mengambil data [cite: 107]
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
 };

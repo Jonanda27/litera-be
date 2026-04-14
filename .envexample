@@ -5,3 +5,6 @@ DB_NAME=litera_db
 DB_USER=postgres
 DB_PASS=naufal
 JWT_SECRET=supersecret
+
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=

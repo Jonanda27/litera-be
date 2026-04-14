@@ -8,7 +8,7 @@ let isReady = false;
 
 export const initWhatsApp = () => {
     console.log("Menyiapkan WhatsApp Web Client (Puppeteer)...");
-    
+
     waClient = new Client({
         // LocalAuth menyimpan sesi login (cookie) agar tidak perlu scan QR tiap server restart
         authStrategy: new LocalAuth(),
@@ -22,7 +22,7 @@ export const initWhatsApp = () => {
                 '--no-first-run',
                 '--no-zygote',
                 '--disable-gpu'
-            ] 
+            ]
         }
     });
 
@@ -31,7 +31,7 @@ export const initWhatsApp = () => {
         console.log('\n=========================================');
         console.log('📱 SCAN QR CODE INI DENGAN WHATSAPP HP ANDA (AKUN MENTOR/ADMIN)');
         console.log('=========================================');
-        qrcode.generate(qr, { small: true });
+        //qrcode.generate(qr, { small: true });
     });
 
     waClient.on('ready', () => {
@@ -57,12 +57,12 @@ export const sendWhatsAppMessage = async (phoneNumber, message) => {
     }
 
     // Normalisasi Nomor Telepon ke format WhatsApp (628xxxx@c.us)
-    let formattedNumber = phoneNumber.replace(/\D/g, ''); 
-    
+    let formattedNumber = phoneNumber.replace(/\D/g, '');
+
     if (formattedNumber.startsWith('0')) {
         formattedNumber = '62' + formattedNumber.slice(1);
     }
-    
+
     if (!formattedNumber.endsWith('@c.us')) {
         formattedNumber += '@c.us';
     }

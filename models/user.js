@@ -13,6 +13,8 @@ export default (sequelize) => {
       // User memiliki catatan progres
       this.hasMany(models.UserProgress, { foreignKey: 'user_id' });
 
+      this.hasMany(models.Transaction, { foreignKey: 'user_id' });
+
       /**
        * PENTING: Relasi User ke Book dihapus dari sini karena sudah 
        * didefinisikan secara eksplisit di models/index.js.
@@ -33,7 +35,8 @@ export default (sequelize) => {
       type: DataTypes.ENUM('admin', 'peserta', 'mentor'), // Tambahkan 'mentor' di sini
       allowNull: false,
       defaultValue: 'peserta'
-    }
+    },
+    status: { type: DataTypes.STRING, defaultValue: 'Non-Aktif' }
   }, {
     sequelize,
     modelName: 'User',

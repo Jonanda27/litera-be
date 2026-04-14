@@ -1,10 +1,12 @@
 import midtransClient from 'midtrans-client';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // 1. Inisialisasi Snap Client
 export const snap = new midtransClient.Snap({
     isProduction: false, // Set ke false untuk Sandbox
-    serverKey: 'Mid-server-kH6h0sAR5eI3uo9ohE_gQIbw',
-    clientKey: 'Mid-client-6tlrMY13kNoFhcCt'
+    serverKey: process.env.MIDTRANS_SERVER_KEY,
+    clientKey: process.env.MIDTRANS_CLIENT_KEY,
 });
 
 // 2. Export fungsi createTransactionToken yang dicari oleh Controller

@@ -79,7 +79,6 @@ app.use("/api/payments", paymentRoutes);
 
 // Route ini tetap dipertahankan jika ada request yang spesifik ke /api/uploads
 app.use('/api/uploads', express.static(path.resolve(__dirname, 'public/uploads')));
-app.use("/api/livekit", livekitRoutes);
 
 app.use("/api/v1/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/exercise", adminExerciseRoutes);

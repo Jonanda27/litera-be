@@ -2,6 +2,7 @@
 node_modules/
 config/
 uploads/
+.wwebjs_auth/
 
 # Environment variables (Sangat Penting!)
 .env
