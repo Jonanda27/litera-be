@@ -101,5 +101,3 @@ io.on("connection", (socket) => {
 });
 
 server.listen(PORT, () => console.log(`🚀 Server aktif di port ${PORT}`));
-
-initWhatsApp();
